@@ -5,14 +5,14 @@ import Link from 'next/link'
 import {
   BarChart3, ArrowLeft, TrendingUp, TrendingDown,
   Users, Calendar, DollarSign, CreditCard, Package, Wifi,
-  ChevronDown
+  ChevronDown, Zap
 } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 const GOOGLE_SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbxufMWqOv5-cv_DUe4HThGywEMg1CwoJk7a0TH9zZwt44ViJaC3xOHYyd09BFNUQU7B/exec'
 
-const WEIGHTS = { sales: 0.45, credits: 0.20, accessories: 0.20, chips: 0.15 }
+const DEFAULT_WEIGHTS = { sales: 0.45, credits: 0.20, accessories: 0.20, chips: 0.15, epin: 0.0 }
 
 const getPercent = (achieved: number, target: number) => {
   if (!target || target === 0) return 0
@@ -20,11 +20,13 @@ const getPercent = (achieved: number, target: number) => {
 }
 
 const calculateSellerScore = (seller: any) => {
+  const w = seller.weights || DEFAULT_WEIGHTS
   const pSales = getPercent(seller.metrics?.sales?.achieved || 0, seller.metrics?.sales?.target || 0)
   const pCredits = getPercent(seller.metrics?.credits?.achieved || 0, seller.metrics?.credits?.target || 0)
   const pAcc = getPercent(seller.metrics?.accessories?.achieved || 0, seller.metrics?.accessories?.target || 0)
   const pChips = getPercent(seller.metrics?.chips?.achieved || 0, seller.metrics?.chips?.target || 0)
-  return (pSales * WEIGHTS.sales) + (pCredits * WEIGHTS.credits) + (pAcc * WEIGHTS.accessories) + (pChips * WEIGHTS.chips)
+  const pEpin = getPercent(seller.metrics?.epin?.achieved || 0, seller.metrics?.epin?.target || 0)
+  return (pSales * (w.sales || 0)) + (pCredits * (w.credits || 0)) + (pAcc * (w.accessories || 0)) + (pChips * (w.chips || 0)) + (pEpin * (w.epin || 0))
 }
 
 export default function HistorialPage() {
@@ -66,6 +68,7 @@ export default function HistorialPage() {
     let creditsTotal = 0, creditsTarget = 0
     let accTotal = 0, accTarget = 0
     let chipsTotal = 0, chipsTarget = 0
+    let epinTotal = 0, epinTarget = 0
     let phonesTotal = 0, totalScore = 0
 
     sellers.forEach((s: any) => {
@@ -77,6 +80,8 @@ export default function HistorialPage() {
       accTarget += s.metrics?.accessories?.target || 0
       chipsTotal += s.metrics?.chips?.achieved || 0
       chipsTarget += s.metrics?.chips?.target || 0
+      epinTotal += s.metrics?.epin?.achieved || 0
+      epinTarget += s.metrics?.epin?.target || 0
       phonesTotal += s.celulares || 0
       totalScore += calculateSellerScore(s)
     })
@@ -90,6 +95,7 @@ export default function HistorialPage() {
       credits: { achieved: creditsTotal, target: creditsTarget, percent: getPercent(creditsTotal, creditsTarget) },
       accessories: { achieved: accTotal, target: accTarget, percent: getPercent(accTotal, accTarget) },
       chips: { achieved: chipsTotal, target: chipsTarget, percent: getPercent(chipsTotal, chipsTarget) },
+      epin: { achieved: epinTotal, target: epinTarget, percent: getPercent(epinTotal, epinTarget) },
       phones: phonesTotal,
       avgScore,
       totalCommissions,
@@ -203,11 +209,14 @@ export default function HistorialPage() {
 
               <CollapsibleContent>
                 <div className="border-t border-slate-200">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-slate-200">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-slate-200">
                     <StatCard icon={<DollarSign className="w-4 h-4" />} label="Ventas" value={`L. ${stats.sales.achieved.toLocaleString()}`} target={`Meta: L. ${(stats.sales.target / 1000).toFixed(0)}k`} percent={stats.sales.percent} />
                     <StatCard icon={<CreditCard className="w-4 h-4" />} label="Creditos" value={stats.credits.achieved.toString()} target={`Meta: ${stats.credits.target}`} percent={stats.credits.percent} />
                     <StatCard icon={<Package className="w-4 h-4" />} label="Accesorios" value={stats.accessories.achieved.toString()} target={`Meta: ${stats.accessories.target}`} percent={stats.accessories.percent} />
                     <StatCard icon={<Wifi className="w-4 h-4" />} label="Chips" value={stats.chips.achieved.toString()} target={`Meta: ${stats.chips.target}`} percent={stats.chips.percent} />
+                    {(stats.epin.achieved > 0 || stats.epin.target > 0) && (
+                      <StatCard icon={<Zap className="w-4 h-4" />} label="EPIN" value={`L. ${stats.epin.achieved.toLocaleString()}`} target={`Meta: L. ${(stats.epin.target / 1000).toFixed(0)}k`} percent={stats.epin.percent} />
+                    )}
                   </div>
 
                   <div className="p-4">
@@ -223,6 +232,7 @@ export default function HistorialPage() {
                             <th className="px-3 py-2 text-right font-bold">Creditos</th>
                             <th className="px-3 py-2 text-right font-bold">Accesorios</th>
                             <th className="px-3 py-2 text-right font-bold">Chips</th>
+                            <th className="px-3 py-2 text-right font-bold">EPIN</th>
                             <th className="px-3 py-2 text-right font-bold">Celulares</th>
                             <th className="px-3 py-2 text-center font-bold">KPI</th>
                           </tr>
@@ -237,6 +247,7 @@ export default function HistorialPage() {
                                 <td className="px-3 py-2 text-right text-slate-600">{seller.metrics?.credits?.achieved || 0}</td>
                                 <td className="px-3 py-2 text-right text-slate-600">{seller.metrics?.accessories?.achieved || 0}</td>
                                 <td className="px-3 py-2 text-right text-slate-600">{seller.metrics?.chips?.achieved || 0}</td>
+                                <td className="px-3 py-2 text-right text-slate-600">L. {(seller.metrics?.epin?.achieved || 0).toLocaleString()}</td>
                                 <td className="px-3 py-2 text-right text-slate-600 font-bold">{seller.celulares || 0}</td>
                                 <td className="px-3 py-2 text-center">
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold ${

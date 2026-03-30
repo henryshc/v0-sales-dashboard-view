@@ -29,12 +29,21 @@ type WeightsMap = Record<MetricKey, number>;
 type SellerStatus = 'active' | 'suspended' | 'inactive';
 type ExitReason = 'renuncia' | 'despido' | 'abandono' | 'contrato_terminado' | null;
 
+// Credit breakdown by financiera
+type CreditBreakdown = {
+  ola: number;
+  krediya: number;
+  oi: number;
+};
+
 type Seller = {
   id: number;
   name: string;
   celulares: number;
+  celularesCredito?: number;      // Celulares que aplican a credito
   weights: WeightsMap;
   metrics: MetricsMap;
+  creditBreakdown?: CreditBreakdown; // Desglose de creditos por financiera
   // Estado del vendedor
   status?: SellerStatus;
   hireDate?: string | null;      // YYYY-MM-DD
@@ -567,7 +576,7 @@ const DigimaxSalesView = () => {
         setSyncStatus('synced'); // Still show synced since localStorage has it
         console.log('[v0] Cloud save failed, but localStorage backup saved');
       }
-    }, 2000);
+    }, 500); // Reduced from 2000ms for faster real-time updates
     return () => clearTimeout(timer);
   }, [history, isLoading]);
 
@@ -583,12 +592,28 @@ const DigimaxSalesView = () => {
   // HANDLERS
   const changeMonth = (offset: number) => { const nd = new Date(currentDate); nd.setMonth(nd.getMonth() + offset); setCurrentDate(nd); setIsEditing(false); };
 
-  const handleSellerChange = (id: number, metricKey: MetricKey | 'celulares', value: string, isTarget = false) => {
+  const handleSellerChange = (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi', value: string, isTarget = false) => {
     const currentSellers = [...currentMonthData.sellers];
     const idx = currentSellers.findIndex(s => s.id === id);
     if (idx === -1) return;
     const updated = { ...currentSellers[idx] };
-    if (metricKey === 'celulares') { updated.celulares = parseInt(value) || 0; }
+    if (metricKey === 'celulares') { 
+      updated.celulares = parseInt(value) || 0; 
+    } else if (metricKey === 'celularesCredito') {
+      updated.celularesCredito = parseInt(value) || 0;
+    } else if (metricKey === 'creditOla') {
+      updated.creditBreakdown = { ...(updated.creditBreakdown || { ola: 0, krediya: 0, oi: 0 }), ola: parseInt(value) || 0 };
+      // Update total credits achieved
+      updated.metrics = { ...updated.metrics, credits: { ...updated.metrics.credits, achieved: (updated.creditBreakdown.ola || 0) + (updated.creditBreakdown.krediya || 0) + (updated.creditBreakdown.oi || 0) } };
+    } else if (metricKey === 'creditKrediya') {
+      updated.creditBreakdown = { ...(updated.creditBreakdown || { ola: 0, krediya: 0, oi: 0 }), krediya: parseInt(value) || 0 };
+      // Update total credits achieved
+      updated.metrics = { ...updated.metrics, credits: { ...updated.metrics.credits, achieved: (updated.creditBreakdown.ola || 0) + (updated.creditBreakdown.krediya || 0) + (updated.creditBreakdown.oi || 0) } };
+    } else if (metricKey === 'creditOi') {
+      updated.creditBreakdown = { ...(updated.creditBreakdown || { ola: 0, krediya: 0, oi: 0 }), oi: parseInt(value) || 0 };
+      // Update total credits achieved
+      updated.metrics = { ...updated.metrics, credits: { ...updated.metrics.credits, achieved: (updated.creditBreakdown.ola || 0) + (updated.creditBreakdown.krediya || 0) + (updated.creditBreakdown.oi || 0) } };
+    }
     else { updated.metrics = { ...updated.metrics, [metricKey]: { ...updated.metrics[metricKey], [isTarget ? 'target' : 'achieved']: safeNumber(value, 0) } }; }
     currentSellers[idx] = updated;
     setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, sellers: currentSellers } }));
@@ -1154,6 +1179,9 @@ const DigimaxSalesView = () => {
                               {isActive && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 tracking-wide">Ausente hoy</span>}
                             </div>
                             <p className="text-[11px] text-slate-400 font-medium mt-0.5">{v.type}</p>
+                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                              {new Date(v.start + 'T00:00:00').toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })} - {new Date(v.end + 'T00:00:00').toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })}
+                            </p>
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-sm font-bold font-heading text-slate-700">{daysThisMonth}d</p>
@@ -1171,7 +1199,7 @@ const DigimaxSalesView = () => {
                   <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
                       <Users className="w-3.5 h-3.5" />
-                      <span>Equipo este mes: <strong className="text-slate-700">{teamRoster.length}</strong> vendedores</span>
+                      <span>Equipo este mes: <strong className="text-slate-700">{currentMonthData.sellers.filter(s => (s.status || 'active') === 'active').length}</strong> vendedores</span>
                     </div>
                     {sellersOnVacationToday.length > 0 && (
                       <div className="flex items-center gap-1.5 text-[11px] text-amber-600 font-semibold">
@@ -1545,7 +1573,7 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
 const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onStatusChange }: { 
   seller: Seller; 
   isEditing: boolean; 
-  onChange: (id: number, metricKey: MetricKey | 'celulares', value: string, isTarget?: boolean) => void; 
+  onChange: (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi', value: string, isTarget?: boolean) => void; 
   onDelete: (id: number) => void; 
   onOpenConfig: () => void;
   onStatusChange?: (id: number, status: SellerStatus, reason?: ExitReason) => void;
@@ -1632,13 +1660,48 @@ const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onSta
           )}
           <MetricRow label="Ventas" val={seller.metrics.sales.achieved} target={seller.metrics.sales.target} isMoney onChange={v => onChange(seller.id, 'sales', v)} onTargetChange={v => onChange(seller.id, 'sales', v, true)} isEditing={isEditing} />
           <MetricRow label="Creditos" val={seller.metrics.credits.achieved} target={seller.metrics.credits.target} onChange={v => onChange(seller.id, 'credits', v)} onTargetChange={v => onChange(seller.id, 'credits', v, true)} isEditing={isEditing} />
+          {/* Credit breakdown by financiera */}
+          {isEditing && (
+            <div className="bg-slate-50 rounded-lg p-2.5 space-y-2">
+              <p className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Desglose por Financiera</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[8px] font-bold text-purple-600 uppercase block mb-0.5">OLA</label>
+                  <input className="w-full border border-slate-200 rounded text-center text-slate-800 font-bold text-xs py-1 focus:border-purple-500 outline-none" value={seller.creditBreakdown?.ola || 0} onChange={e => onChange(seller.id, 'creditOla', e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-[8px] font-bold text-emerald-600 uppercase block mb-0.5">KREDIYA</label>
+                  <input className="w-full border border-slate-200 rounded text-center text-slate-800 font-bold text-xs py-1 focus:border-emerald-500 outline-none" value={seller.creditBreakdown?.krediya || 0} onChange={e => onChange(seller.id, 'creditKrediya', e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-[8px] font-bold text-blue-600 uppercase block mb-0.5">OI</label>
+                  <input className="w-full border border-slate-200 rounded text-center text-slate-800 font-bold text-xs py-1 focus:border-blue-500 outline-none" value={seller.creditBreakdown?.oi || 0} onChange={e => onChange(seller.id, 'creditOi', e.target.value)} />
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Show credit breakdown summary when not editing */}
+          {!isEditing && (seller.creditBreakdown?.ola || seller.creditBreakdown?.krediya || seller.creditBreakdown?.oi) && (
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="text-slate-400">Desglose:</span>
+              {seller.creditBreakdown?.ola > 0 && <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded font-bold">OLA: {seller.creditBreakdown.ola}</span>}
+              {seller.creditBreakdown?.krediya > 0 && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded font-bold">KREDIYA: {seller.creditBreakdown.krediya}</span>}
+              {seller.creditBreakdown?.oi > 0 && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-bold">OI: {seller.creditBreakdown.oi}</span>}
+            </div>
+          )}
           <MetricRow label="Accesorios" val={seller.metrics.accessories.achieved} target={seller.metrics.accessories.target} onChange={v => onChange(seller.id, 'accessories', v)} onTargetChange={v => onChange(seller.id, 'accessories', v, true)} isEditing={isEditing} />
           <MetricRow label="Chips" val={seller.metrics.chips.achieved} target={seller.metrics.chips.target} onChange={v => onChange(seller.id, 'chips', v)} onTargetChange={v => onChange(seller.id, 'chips', v, true)} isEditing={isEditing} />
           <MetricRow label="EPIN" val={seller.metrics.epin.achieved} target={seller.metrics.epin.target} isMoney onChange={v => onChange(seller.id, 'epin', v)} onTargetChange={v => onChange(seller.id, 'epin', v, true)} isEditing={isEditing} />
           <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
-              <Smartphone className="w-3.5 h-3.5" /><span>Cel:</span>
-              {isEditing ? <input className="w-14 border rounded text-center text-slate-800 font-black" value={seller.celulares} onChange={e => onChange(seller.id, 'celulares', e.target.value)} /> : <span className="text-slate-800 font-black">{seller.celulares}</span>}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
+                <Smartphone className="w-3.5 h-3.5" /><span>Cel:</span>
+                {isEditing ? <input className="w-14 border rounded text-center text-slate-800 font-black" value={seller.celulares} onChange={e => onChange(seller.id, 'celulares', e.target.value)} /> : <span className="text-slate-800 font-black">{seller.celulares}</span>}
+              </div>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
+                <span className="text-blue-500">Cred:</span>
+                {isEditing ? <input className="w-14 border border-blue-200 rounded text-center text-blue-600 font-black bg-blue-50/50" value={seller.celularesCredito || 0} onChange={e => onChange(seller.id, 'celularesCredito', e.target.value)} /> : <span className="text-blue-600 font-black">{seller.celularesCredito || 0}</span>}
+              </div>
             </div>
             {isEditing && <button onClick={() => onDelete(seller.id)} className="text-red-500 text-[10px] font-bold uppercase flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition-colors"><Trash2 className="w-3 h-3" /> Eliminar</button>}
           </div>

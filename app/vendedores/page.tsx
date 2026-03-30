@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, Users, TrendingUp, TrendingDown,
-  ChevronDown, DollarSign, CreditCard, Package, Wifi, Smartphone, Trophy, Award
+  ChevronDown, DollarSign, CreditCard, Package, Wifi, Smartphone, Trophy, Award, Zap
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -79,6 +79,7 @@ export default function VendedoresPage() {
       { key: 'credits', label: 'Creditos', icon: <CreditCard className="w-4 h-4" />, color: 'text-blue-600' },
       { key: 'accessories', label: 'Accesorios', icon: <Package className="w-4 h-4" />, color: 'text-amber-600' },
       { key: 'chips', label: 'Chips', icon: <Wifi className="w-4 h-4" />, color: 'text-cyan-600' },
+      { key: 'epin', label: 'EPIN', icon: <Zap className="w-4 h-4" />, color: 'text-purple-600' },
     ]
     const results = categories.map(cat => {
       let best: any = null
@@ -183,7 +184,7 @@ export default function VendedoresPage() {
             <h2 className="text-xs font-black font-heading text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
               <Award className="w-4 h-4" /> Mejores por Categoria
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               {bestByCategory.map(cat => (
                 <Card key={cat.key} className={`shadow-sm border-t-2 ${cat.key === 'global' ? 'border-t-indigo-500 bg-indigo-50/50' : 'border-t-slate-200'}`}>
                   <CardContent className="p-3">
@@ -228,7 +229,7 @@ export default function VendedoresPage() {
                             <div>
                               <p className="font-black text-slate-800 text-sm">{s.name}</p>
                               <p className="text-[10px] text-slate-400 font-medium">
-                                L. {(s.metrics?.sales?.achieved || 0).toLocaleString()} | {s.celulares || 0} cel.
+                                L. {(s.metrics?.sales?.achieved || 0).toLocaleString()} | {s.celulares || 0} cel. {s.celularesCredito ? `(${s.celularesCredito} cred)` : ''}
                               </p>
                             </div>
                           </div>
@@ -247,13 +248,14 @@ export default function VendedoresPage() {
                     <CollapsibleContent>
                       <div className="border-t border-slate-100 p-3 md:p-4 space-y-4">
                         {/* Metricas detalladas */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                           {[
                             { label: 'Ventas', achieved: s.metrics?.sales?.achieved || 0, target: s.metrics?.sales?.target || 0, icon: <DollarSign className="w-3 h-3" />, fmt: (v: number) => `L.${(v / 1000).toFixed(0)}k` },
-                            { label: 'Creditos', achieved: s.metrics?.credits?.achieved || 0, target: s.metrics?.credits?.target || 0, icon: <CreditCard className="w-3 h-3" />, fmt: (v: number) => String(v) },
+                            { label: 'Creditos', achieved: s.metrics?.credits?.achieved || 0, target: s.metrics?.credits?.target || 0, icon: <CreditCard className="w-3 h-3" />, fmt: (v: number) => String(v), extra: s.creditBreakdown ? `OLA:${s.creditBreakdown.ola || 0} KRE:${s.creditBreakdown.krediya || 0} OI:${s.creditBreakdown.oi || 0}` : undefined },
                             { label: 'Accesorios', achieved: s.metrics?.accessories?.achieved || 0, target: s.metrics?.accessories?.target || 0, icon: <Package className="w-3 h-3" />, fmt: (v: number) => String(v) },
                             { label: 'Chips', achieved: s.metrics?.chips?.achieved || 0, target: s.metrics?.chips?.target || 0, icon: <Wifi className="w-3 h-3" />, fmt: (v: number) => String(v) },
-                            { label: 'Celulares', achieved: s.celulares || 0, target: 0, icon: <Smartphone className="w-3 h-3" />, fmt: (v: number) => String(v) },
+                            { label: 'EPIN', achieved: s.metrics?.epin?.achieved || 0, target: s.metrics?.epin?.target || 0, icon: <Zap className="w-3 h-3" />, fmt: (v: number) => `L.${(v / 1000).toFixed(0)}k` },
+                            { label: 'Celulares', achieved: s.celulares || 0, target: 0, icon: <Smartphone className="w-3 h-3" />, fmt: (v: number) => String(v), extra: s.celularesCredito ? `${s.celularesCredito} a credito` : undefined },
                           ].map(m => (
                             <div key={m.label} className="bg-slate-50 rounded-lg p-2.5">
                               <div className="flex items-center gap-1 text-slate-400 mb-1">
@@ -261,6 +263,7 @@ export default function VendedoresPage() {
                                 <span className="text-[9px] font-bold uppercase tracking-wider">{m.label}</span>
                               </div>
                               <p className="text-sm font-black text-slate-800">{m.fmt(m.achieved)}</p>
+                              {'extra' in m && m.extra && <p className="text-[9px] text-blue-500 font-medium">{m.extra}</p>}
                               {m.target > 0 && (
                                 <>
                                   <p className="text-[9px] text-slate-400">Meta: {m.fmt(m.target)}</p>
