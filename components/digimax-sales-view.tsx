@@ -348,6 +348,18 @@ const FEB_2026_DATA: Seller[] = [
 ];
 const FEB_COMMISSIONS: Commissions = { tigo: 59282, krediya: 0, ola: 9820 };
 
+// Marzo 2026 - Plantilla inicial con metas (los achieved se actualizan manualmente)
+const MAR_2026_DATA: Seller[] = [
+  { id: 1, name: 'JUAN CARLOS', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 190000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 60 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 20000 } }) },
+  { id: 2, name: 'MATILDE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 120000 }, credits: { achieved: 0, target: 12 }, accessories: { achieved: 0, target: 70 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 0 } }) },
+  { id: 3, name: 'JAZMIN', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 30000 }, credits: { achieved: 0, target: 5 }, accessories: { achieved: 0, target: 10 }, chips: { achieved: 0, target: 10 }, epin: { achieved: 0, target: 190000 } }) },
+  { id: 4, name: 'JEAMIE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 220000 }, credits: { achieved: 0, target: 30 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 70 }, epin: { achieved: 0, target: 0 } }) },
+  { id: 5, name: 'RIESI', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 180000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 80 }, epin: { achieved: 0, target: 40000 } }) },
+  { id: 7, name: 'LARITZA', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 220000 }, credits: { achieved: 0, target: 30 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 80 }, epin: { achieved: 0, target: 0 } }) },
+  { id: 8, name: 'NICOLE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 180000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 70 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 1560 } }) },
+];
+const MAR_COMMISSIONS: Commissions = { tigo: 0, krediya: 0, ola: 0 };
+
 // ============================================================================
 // 5. KPI LOGIC
 // ============================================================================
@@ -592,11 +604,12 @@ const DigimaxSalesView = () => {
     return () => clearTimeout(timer);
   }, [history, isLoading]);
 
-  const currentMonthData: MonthData = useMemo(() => {
-    if (history[monthKey]) return history[monthKey];
-    if (monthKey === '2026-01') return { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
-    if (monthKey === '2026-02') return { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
-    return { sellers: getNewMonthTemplate(), commissions: { tigo: 0, krediya: 0, ola: 0 }, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+const currentMonthData: MonthData = useMemo(() => {
+  if (history[monthKey]) return history[monthKey];
+  if (monthKey === '2026-01') return { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+  if (monthKey === '2026-02') return { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+  if (monthKey === '2026-03') return { sellers: MAR_2026_DATA, commissions: MAR_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+  return { sellers: getNewMonthTemplate(), commissions: { tigo: 0, krediya: 0, ola: 0 }, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
   }, [history, monthKey]);
 
   const globalTargets = useMemo<GlobalTargets>(() => currentMonthData.globalTargets || { ...DEFAULT_GLOBAL_TARGETS }, [currentMonthData]);
