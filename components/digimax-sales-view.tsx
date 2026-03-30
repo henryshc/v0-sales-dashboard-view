@@ -87,7 +87,7 @@ type CloudPayload = { history?: HistoryMap; globalTargets?: Partial<GlobalTarget
 // ============================================================================
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxufMWqOv5-cv_DUe4HThGywEMg1CwoJk7a0TH9zZwt44ViJaC3xOHYyd09BFNUQU7B/exec';
-const DATA_VERSION = 'v1.9.5-CREDIT-BREAKDOWN';
+const DATA_VERSION = 'v1.9.4-FEB-DATA-UPDATE';
 
 const DEFAULT_WEIGHTS: WeightsMap = { sales: 0.45, credits: 0.2, accessories: 0.2, chips: 0.15, epin: 0.0 };
 const DEFAULT_GLOBAL_TARGETS: GlobalTargets = { sales: 1500000, credits: 150, accessories: 560, chips: 400, epin: 0 };
