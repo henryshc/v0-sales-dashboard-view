@@ -87,7 +87,7 @@ type CloudPayload = { history?: HistoryMap; globalTargets?: Partial<GlobalTarget
 // ============================================================================
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxufMWqOv5-cv_DUe4HThGywEMg1CwoJk7a0TH9zZwt44ViJaC3xOHYyd09BFNUQU7B/exec';
-const DATA_VERSION = 'v1.9.4-FEB-DATA-UPDATE';
+const DATA_VERSION = 'v1.9.5-CREDIT-BREAKDOWN';
 
 const DEFAULT_WEIGHTS: WeightsMap = { sales: 0.45, credits: 0.2, accessories: 0.2, chips: 0.15, epin: 0.0 };
 const DEFAULT_GLOBAL_TARGETS: GlobalTargets = { sales: 1500000, credits: 150, accessories: 560, chips: 400, epin: 0 };
@@ -338,13 +338,13 @@ const JAN_2026_DATA: Seller[] = [
 const JAN_COMMISSIONS: Commissions = { tigo: 111002, krediya: 4015, ola: 14700 };
 
 const FEB_2026_DATA: Seller[] = [
-  { id: 8, name: 'NICOLE', celulares: 20, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 75652, target: 220000 }, credits: { achieved: 8, target: 30 }, accessories: { achieved: 31, target: 70 }, chips: { achieved: 27, target: 70 }, epin: { achieved: 702, target: 0 } }) },
-  { id: 3, name: 'JAZMIN', celulares: 2, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 4922, target: 20000 }, credits: { achieved: 2, target: 5 }, accessories: { achieved: 1, target: 20 }, chips: { achieved: 5, target: 0 }, epin: { achieved: 68765, target: 200000 } }) },
-  { id: 5, name: 'RIESI', celulares: 12, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 42660, target: 180000 }, credits: { achieved: 3, target: 25 }, accessories: { achieved: 12, target: 80 }, chips: { achieved: 22, target: 80 }, epin: { achieved: 25669, target: 40000 } }) },
-  { id: 7, name: 'LARITZA', celulares: 19, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 66717, target: 220000 }, credits: { achieved: 7, target: 30 }, accessories: { achieved: 28, target: 80 }, chips: { achieved: 20, target: 80 }, epin: { achieved: 520, target: 0 } }) },
-  { id: 4, name: 'JEAMIE', celulares: 13, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 44043, target: 220000 }, credits: { achieved: 4, target: 30 }, accessories: { achieved: 25, target: 80 }, chips: { achieved: 21, target: 70 }, epin: { achieved: 4799, target: 0 } }) },
-  { id: 2, name: 'MATILDE', celulares: 9, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 36286, target: 120000 }, credits: { achieved: 3, target: 12 }, accessories: { achieved: 20, target: 70 }, chips: { achieved: 7, target: 60 }, epin: { achieved: 182, target: 0 } }) },
-  { id: 1, name: 'JUAN CARLOS', celulares: 2, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 3005, target: 20000 }, credits: { achieved: 1, target: 5 }, accessories: { achieved: 0, target: 60 }, chips: { achieved: 1, target: 40 }, epin: { achieved: 1595, target: 0 } }) },
+  { id: 8, name: 'NICOLE', celulares: 56, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 167389, target: 180000 }, credits: { achieved: 21, target: 25 }, accessories: { achieved: 83, target: 70 }, chips: { achieved: 42, target: 60 }, epin: { achieved: 1092, target: 1560 } }) },
+  { id: 3, name: 'JAZMIN', celulares: 5, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 17866, target: 30000 }, credits: { achieved: 4, target: 5 }, accessories: { achieved: 8, target: 10 }, chips: { achieved: 6, target: 10 }, epin: { achieved: 169919, target: 190000 } }) },
+  { id: 5, name: 'RIESI', celulares: 44, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 135876, target: 180000 }, credits: { achieved: 17, target: 25 }, accessories: { achieved: 55, target: 80 }, chips: { achieved: 45, target: 80 }, epin: { achieved: 44283, target: 40000 } }) },
+  { id: 7, name: 'LARITZA', celulares: 52, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 148932, target: 220000 }, credits: { achieved: 18, target: 30 }, accessories: { achieved: 62, target: 80 }, chips: { achieved: 38, target: 80 }, epin: { achieved: 2847, target: 0 } }) },
+  { id: 4, name: 'JEAMIE', celulares: 38, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 112567, target: 220000 }, credits: { achieved: 12, target: 30 }, accessories: { achieved: 48, target: 80 }, chips: { achieved: 35, target: 70 }, epin: { achieved: 8934, target: 0 } }) },
+  { id: 2, name: 'MATILDE', celulares: 28, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 89456, target: 120000 }, credits: { achieved: 9, target: 12 }, accessories: { achieved: 45, target: 70 }, chips: { achieved: 22, target: 60 }, epin: { achieved: 1245, target: 0 } }) },
+  { id: 1, name: 'JUAN CARLOS', celulares: 58, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 184705, target: 190000 }, credits: { achieved: 24, target: 25 }, accessories: { achieved: 55, target: 60 }, chips: { achieved: 44, target: 60 }, epin: { achieved: 25290, target: 20000 } }) },
 ];
 const FEB_COMMISSIONS: Commissions = { tigo: 59282, krediya: 0, ola: 9820 };
 
@@ -539,6 +539,12 @@ const DigimaxSalesView = () => {
             id: safeNumber(s.id, 0),
             name: String(s.name || '').toUpperCase(),
             celulares: safeNumber(s.celulares, 0),
+            celularesCredito: safeNumber(s.celularesCredito, 0),
+            creditBreakdown: {
+              ola: safeNumber(s.creditBreakdown?.ola, 0),
+              krediya: safeNumber(s.creditBreakdown?.krediya, 0),
+              oi: safeNumber(s.creditBreakdown?.oi, 0),
+            },
             weights: { ...DEFAULT_WEIGHTS, ...(s.weights || {}) } as WeightsMap,
             metrics: makeMetrics({
               sales: { achieved: safeNumber(s.metrics?.sales?.achieved), target: safeNumber(s.metrics?.sales?.target) },
@@ -547,6 +553,12 @@ const DigimaxSalesView = () => {
               chips: { achieved: safeNumber(s.metrics?.chips?.achieved), target: safeNumber(s.metrics?.chips?.target) },
               epin: { achieved: safeNumber(s.metrics?.epin?.achieved), target: safeNumber(s.metrics?.epin?.target) },
             }),
+            status: s.status || 'active',
+            hireDate: s.hireDate || null,
+            exitDate: s.exitDate || null,
+            exitReason: s.exitReason || null,
+            suspendedUntil: s.suspendedUntil || null,
+            notes: s.notes || '',
           } as Seller));
           patchedHistory[key] = {
             sellers,
@@ -638,14 +650,22 @@ const DigimaxSalesView = () => {
     if (hydratedRef.current) markModified(monthKey);
   };
 
-  const handleAddSeller = () => {
-    if (!newSellerName.trim()) return;
-    const newId = Math.max(0, ...currentMonthData.sellers.map(s => s.id)) + 1;
-    const ns: Seller = { id: newId, name: newSellerName.toUpperCase().trim(), celulares: 0, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: newSellerTargets.sales }, credits: { achieved: 0, target: newSellerTargets.credits }, accessories: { achieved: 0, target: newSellerTargets.accessories }, chips: { achieved: 0, target: newSellerTargets.chips }, epin: { achieved: 0, target: newSellerTargets.epin } }) };
-    setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, sellers: [...currentMonthData.sellers, ns] } }));
-    setNewSellerName(''); setShowAddSeller(false);
-    if (hydratedRef.current) markModified(monthKey);
+const handleAddSeller = () => {
+  if (!newSellerName.trim()) return;
+  const newId = Math.max(0, ...currentMonthData.sellers.map(s => s.id)) + 1;
+  const ns: Seller = { 
+    id: newId, 
+    name: newSellerName.toUpperCase().trim(), 
+    celulares: 0, 
+    celularesCredito: 0,
+    creditBreakdown: { ola: 0, krediya: 0, oi: 0 },
+    weights: { ...DEFAULT_WEIGHTS }, 
+    metrics: makeMetrics({ sales: { achieved: 0, target: newSellerTargets.sales }, credits: { achieved: 0, target: newSellerTargets.credits }, accessories: { achieved: 0, target: newSellerTargets.accessories }, chips: { achieved: 0, target: newSellerTargets.chips }, epin: { achieved: 0, target: newSellerTargets.epin } }) 
   };
+  setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, sellers: [...currentMonthData.sellers, ns] } }));
+  setNewSellerName(''); setShowAddSeller(false);
+  if (hydratedRef.current) markModified(monthKey);
+};
 
   const handleDeleteSeller = (id: number) => {
     if (!confirm('Eliminar este vendedor?')) return;
