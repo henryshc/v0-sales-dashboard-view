@@ -898,6 +898,7 @@ const DigimaxSalesView = () => {
   const bestCredits = useMemo(() => getBestPerformer(currentMonthData.sellers, 'credits'), [currentMonthData.sellers]);
   const bestAccessories = useMemo(() => getBestPerformer(currentMonthData.sellers, 'accessories'), [currentMonthData.sellers]);
   const bestChips = useMemo(() => getBestPerformer(currentMonthData.sellers, 'chips'), [currentMonthData.sellers]);
+  const bestEpin = useMemo(() => getBestPerformer(currentMonthData.sellers, 'epin'), [currentMonthData.sellers]);
   const bestOverall = useMemo(() => getBestOverall(currentMonthData.sellers), [currentMonthData.sellers]);
 
   if (isLoading) {
@@ -1257,11 +1258,12 @@ const DigimaxSalesView = () => {
             )}
 
             {/* BEST PERFORMERS */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <BestCard title="Mejor Ventas" data={bestSales} icon={<Zap className="w-3.5 h-3.5" />} color="text-emerald-600" bgColor="bg-emerald-50/80" />
               <BestCard title="Mejor Creditos" data={bestCredits} icon={<Star className="w-3.5 h-3.5" />} color="text-blue-600" bgColor="bg-blue-50/80" />
               <BestCard title="Mejor Accesorios" data={bestAccessories} icon={<Award className="w-3.5 h-3.5" />} color="text-amber-600" bgColor="bg-amber-50/80" />
               <BestCard title="Mejor Chips" data={bestChips} icon={<Wifi className="w-3.5 h-3.5" />} color="text-cyan-600" bgColor="bg-cyan-50/80" />
+              {(globalStats.epin.achieved > 0 || globalStats.epin.target > 0) && <BestCard title="Mejor EPIN" data={bestEpin} icon={<Zap className="w-3.5 h-3.5" />} color="text-purple-600" bgColor="bg-purple-50/80" />}
               <BestCard title="Rendimiento" data={bestOverall ? { name: bestOverall.name, pct: bestOverall.score } : null} icon={<Trophy className="w-3.5 h-3.5" />} color="text-indigo-600" bgColor="bg-indigo-50/80" isGlobal />
             </div>
 
@@ -1756,6 +1758,7 @@ const AIInsightsView = ({ sellers, globalStats, currentDate, paceMetrics }: { se
     { label: 'Creditos', achieved: globalStats.credits.achieved, target: globalStats.credits.target },
     { label: 'Accesorios', achieved: globalStats.acc.achieved, target: globalStats.acc.target },
     { label: 'Chips', achieved: globalStats.chips.achieved, target: globalStats.chips.target },
+    ...(globalStats.epin.achieved > 0 || globalStats.epin.target > 0 ? [{ label: 'EPIN', achieved: globalStats.epin.achieved, target: globalStats.epin.target }] : []),
   ];
 
   const weakest = kpiStatus.reduce((min, k) => {
@@ -1996,7 +1999,7 @@ const ComparativeView = ({ sellers, monthName }: { sellers: Seller[]; monthName:
                     <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full transition-all duration-700 ${s.score >= 100 ? 'bg-emerald-500' : s.score >= 80 ? 'bg-blue-500' : 'bg-indigo-500'}`} style={{ width: `${barW}%` }} />
                     </div>
-                    <p className="text-[10px] text-slate-500 font-medium mt-1">L.{(totalSales / 1000).toFixed(1)}k | {s.celulares || 0} cel.</p>
+                    <p className="text-[10px] text-slate-500 font-medium mt-1">L.{(totalSales / 1000).toFixed(1)}k {(s.metrics.epin?.achieved || 0) > 0 ? <span className="text-purple-400">(EPIN: L.{((s.metrics.epin?.achieved || 0) / 1000).toFixed(1)}k)</span> : null} | {s.celulares || 0} cel.</p>
                   </div>
                 </div>
               );
@@ -2017,10 +2020,11 @@ const HistoricalView = ({ history }: { history: HistoryMap }) => {
   const chartData = months.map(m => {
     const data = history[m];
     const comms = (data.commissions?.tigo || 0) + (data.commissions?.krediya || 0) + (data.commissions?.ola || 0);
-    const sales = (data.sellers || []).reduce((acc, s) => acc + (s.metrics?.sales?.achieved || 0), 0) + comms;
+    const epin = (data.sellers || []).reduce((acc, s) => acc + (s.metrics?.epin?.achieved || 0), 0);
+    const sales = (data.sellers || []).reduce((acc, s) => acc + (s.metrics?.sales?.achieved || 0), 0) + comms + epin;
     const target = data.globalTargets?.sales || DEFAULT_GLOBAL_TARGETS.sales;
     const label = new Date(m + '-02').toLocaleDateString('es-ES', { month: 'short' }).toUpperCase();
-    return { month: m, label, sales, target };
+    return { month: m, label, sales, target, epin };
   });
   const maxVal = Math.max(...chartData.map(d => Math.max(d.sales, d.target)), 1);
 
@@ -2063,19 +2067,21 @@ const HistoricalView = ({ history }: { history: HistoryMap }) => {
       <Card className="shadow-sm border-slate-200 overflow-hidden">
         <table className="w-full text-xs">
           <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold tracking-widest">
-            <tr><th className="px-5 py-3 text-left">Mes</th><th className="px-5 py-3 text-right">Venta</th><th className="px-5 py-3 text-right hidden md:table-cell">Meta</th><th className="px-5 py-3 text-right">%</th></tr>
+            <tr><th className="px-5 py-3 text-left">Mes</th><th className="px-5 py-3 text-right">Venta</th><th className="px-5 py-3 text-right hidden md:table-cell">EPIN</th><th className="px-5 py-3 text-right hidden md:table-cell">Meta</th><th className="px-5 py-3 text-right">%</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {months.map(m => {
               const data = history[m];
               const comms = (data.commissions?.tigo || 0) + (data.commissions?.krediya || 0) + (data.commissions?.ola || 0);
-              const sales = (data.sellers || []).reduce((acc, s) => acc + (s.metrics?.sales?.achieved || 0), 0) + comms;
+              const epin = (data.sellers || []).reduce((acc, s) => acc + (s.metrics?.epin?.achieved || 0), 0);
+              const sales = (data.sellers || []).reduce((acc, s) => acc + (s.metrics?.sales?.achieved || 0), 0) + comms + epin;
               const target = data.globalTargets?.sales || DEFAULT_GLOBAL_TARGETS.sales;
               const pct = target > 0 ? (sales / target) * 100 : 0;
               return (
                 <tr key={m} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3 font-bold text-slate-700 capitalize">{new Date(m + '-02').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</td>
                   <td className="px-5 py-3 text-right font-black text-emerald-600">L. {Number(sales).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-right font-black text-purple-600 hidden md:table-cell">{epin > 0 ? `L. ${epin.toLocaleString()}` : '-'}</td>
                   <td className="px-5 py-3 text-right text-slate-500 hidden md:table-cell">{(Number(target) / 1000).toFixed(0)}k</td>
                   <td className="px-5 py-3 text-right"><span className={`font-black ${pct >= 100 ? 'text-emerald-600' : 'text-red-500'}`}>{pct.toFixed(1)}%</span></td>
                 </tr>
