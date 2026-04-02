@@ -36,11 +36,15 @@ type CreditBreakdown = {
   oi: number;
 };
 
+// Tipo de vendedor para medir KPIs diferentes
+type SellerType = 'piso' | 'tigomoney';
+
 type Seller = {
   id: number;
   name: string;
   celulares: number;
   celularesCredito?: number;      // Celulares que aplican a credito
+  sellerType?: SellerType;        // Tipo de vendedor (piso = default, tigomoney = solo EPIN)
   weights: WeightsMap;
   metrics: MetricsMap;
   creditBreakdown?: CreditBreakdown; // Desglose de creditos por financiera
@@ -75,6 +79,7 @@ type MonthData = {
   modifiedDays: string[];
   lastModifiedAt: string | null;
   changeLog?: ChangeLogEntry[];
+  vacations?: VacationEntry[];  // Vacaciones editables por mes
   isClosed?: boolean;         // Mes cerrado/congelado
   closedAt?: string | null;   // Fecha de cierre
 };
@@ -339,7 +344,7 @@ const JAN_COMMISSIONS: Commissions = { tigo: 111002, krediya: 4015, ola: 14700 }
 
 const FEB_2026_DATA: Seller[] = [
   { id: 8, name: 'NICOLE', celulares: 56, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 167389, target: 180000 }, credits: { achieved: 21, target: 25 }, accessories: { achieved: 83, target: 70 }, chips: { achieved: 42, target: 60 }, epin: { achieved: 1092, target: 1560 } }) },
-  { id: 3, name: 'JAZMIN', celulares: 5, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 17866, target: 30000 }, credits: { achieved: 4, target: 5 }, accessories: { achieved: 8, target: 10 }, chips: { achieved: 6, target: 10 }, epin: { achieved: 169919, target: 190000 } }) },
+  { id: 3, name: 'JAZMIN', celulares: 5, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, sellerType: 'tigomoney', weights: { sales: 0.05, credits: 0.05, accessories: 0.05, chips: 0.05, epin: 0.80 }, metrics: makeMetrics({ sales: { achieved: 17866, target: 30000 }, credits: { achieved: 4, target: 5 }, accessories: { achieved: 8, target: 10 }, chips: { achieved: 6, target: 10 }, epin: { achieved: 169919, target: 190000 } }) },
   { id: 5, name: 'RIESI', celulares: 44, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 135876, target: 180000 }, credits: { achieved: 17, target: 25 }, accessories: { achieved: 55, target: 80 }, chips: { achieved: 45, target: 80 }, epin: { achieved: 44283, target: 40000 } }) },
   { id: 7, name: 'LARITZA', celulares: 52, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 148932, target: 220000 }, credits: { achieved: 18, target: 30 }, accessories: { achieved: 62, target: 80 }, chips: { achieved: 38, target: 80 }, epin: { achieved: 2847, target: 0 } }) },
   { id: 4, name: 'JEAMIE', celulares: 38, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 112567, target: 220000 }, credits: { achieved: 12, target: 30 }, accessories: { achieved: 48, target: 80 }, chips: { achieved: 35, target: 70 }, epin: { achieved: 8934, target: 0 } }) },
@@ -352,7 +357,7 @@ const FEB_COMMISSIONS: Commissions = { tigo: 59282, krediya: 0, ola: 9820 };
 const MAR_2026_DATA: Seller[] = [
   { id: 1, name: 'JUAN CARLOS', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 190000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 60 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 20000 } }) },
   { id: 2, name: 'MATILDE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 120000 }, credits: { achieved: 0, target: 12 }, accessories: { achieved: 0, target: 70 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 0 } }) },
-  { id: 3, name: 'JAZMIN', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 30000 }, credits: { achieved: 0, target: 5 }, accessories: { achieved: 0, target: 10 }, chips: { achieved: 0, target: 10 }, epin: { achieved: 0, target: 190000 } }) },
+  { id: 3, name: 'JAZMIN', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, sellerType: 'tigomoney', weights: { sales: 0.05, credits: 0.05, accessories: 0.05, chips: 0.05, epin: 0.80 }, metrics: makeMetrics({ sales: { achieved: 0, target: 30000 }, credits: { achieved: 0, target: 5 }, accessories: { achieved: 0, target: 10 }, chips: { achieved: 0, target: 10 }, epin: { achieved: 0, target: 190000 } }) },
   { id: 4, name: 'JEAMIE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 220000 }, credits: { achieved: 0, target: 30 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 70 }, epin: { achieved: 0, target: 0 } }) },
   { id: 5, name: 'RIESI', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 180000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 80 }, epin: { achieved: 0, target: 40000 } }) },
   { id: 7, name: 'LARITZA', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 220000 }, credits: { achieved: 0, target: 30 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 80 }, epin: { achieved: 0, target: 0 } }) },
@@ -504,6 +509,8 @@ const DigimaxSalesView = () => {
   const [showAddSeller, setShowAddSeller] = useState(false);
   const [showGlobalSettings, setShowGlobalSettings] = useState(false);
   const [sellerConfig, setSellerConfig] = useState<Seller | null>(null);
+  const [showVacationModal, setShowVacationModal] = useState(false);
+  const [editingVacation, setEditingVacation] = useState<VacationEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'saving' | 'updating'>('synced');
   const [history, setHistory] = useState<HistoryMap>({});
@@ -680,9 +687,47 @@ const handleAddSeller = () => {
   if (hydratedRef.current) markModified(monthKey);
 };
 
-  const handleDeleteSeller = (id: number) => {
-    if (!confirm('Eliminar este vendedor?')) return;
-    setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, sellers: currentMonthData.sellers.filter(s => s.id !== id) } }));
+const handleDeleteSeller = (id: number) => {
+  if (!confirm('Eliminar este vendedor?')) return;
+  setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, sellers: currentMonthData.sellers.filter(s => s.id !== id) } }));
+  if (hydratedRef.current) markModified(monthKey);
+  };
+  
+  // Vacation handlers
+  const handleSaveVacation = (vacation: VacationEntry) => {
+    const currentVacations = currentMonthData.vacations || [];
+    let updatedVacations: VacationEntry[];
+    if (editingVacation) {
+      // Update existing
+      updatedVacations = currentVacations.map(v => 
+        (v.name === editingVacation.name && v.start === editingVacation.start) ? vacation : v
+      );
+      // If not found in saved, it was from defaults - add it
+      if (!currentVacations.some(v => v.name === editingVacation.name && v.start === editingVacation.start)) {
+        updatedVacations = [...currentVacations, vacation];
+      }
+    } else {
+      // Add new
+      updatedVacations = [...currentVacations, vacation];
+    }
+    setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, vacations: updatedVacations } }));
+    setShowVacationModal(false);
+    setEditingVacation(null);
+    if (hydratedRef.current) markModified(monthKey);
+  };
+  
+  const handleDeleteVacation = (vacation: VacationEntry) => {
+    if (!confirm(`Eliminar vacaciones de ${vacation.name}?`)) return;
+    const currentVacations = currentMonthData.vacations || [];
+    // Mark as deleted by adding with special flag or simply remove
+    const updatedVacations = currentVacations.filter(v => !(v.name === vacation.name && v.start === vacation.start));
+    // If it was a default vacation, we need to track its deletion
+    const isDefault = VACATIONS.some(v => v.name === vacation.name && v.start === vacation.start);
+    if (isDefault) {
+      // Add a marker to hide this default vacation
+      updatedVacations.push({ ...vacation, status: 'Completado', days: 0, type: '__DELETED__' });
+    }
+    setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, vacations: updatedVacations } }));
     if (hydratedRef.current) markModified(monthKey);
   };
 
@@ -906,7 +951,27 @@ const handleAddSeller = () => {
   const editedDaysCount = Array.isArray(currentMonthData.modifiedDays) ? currentMonthData.modifiedDays.length : 0;
   const editedToday = Array.isArray(currentMonthData.modifiedDays) ? currentMonthData.modifiedDays.includes(toISODateInTZ()) : false;
   const teamRoster = useMemo(() => getTeamRoster(monthKey), [monthKey]);
-  const monthVacations = useMemo(() => getVacationsForMonth(currentDate.getFullYear(), currentDate.getMonth() + 1), [currentDate]);
+  // Combine default VACATIONS with any saved in currentMonthData
+  const monthVacations = useMemo(() => {
+    const defaultVacations = getVacationsForMonth(currentDate.getFullYear(), currentDate.getMonth() + 1);
+    const savedVacations = currentMonthData.vacations || [];
+    // Merge: saved vacations override defaults by matching name+start
+    const merged = [...defaultVacations];
+    savedVacations.forEach(sv => {
+      const existingIdx = merged.findIndex(m => m.name === sv.name && m.start === sv.start);
+      if (existingIdx >= 0) merged[existingIdx] = sv;
+      else merged.push(sv);
+    });
+    return merged.filter(v => {
+      // Exclude deleted vacations
+      if (v.type === '__DELETED__') return false;
+      const vs = new Date(v.start + 'T00:00:00');
+      const ve = new Date(v.end + 'T00:00:00');
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      return vs <= monthEnd && ve >= monthStart;
+    });
+  }, [currentDate, currentMonthData.vacations]);
   const todayISOKey = toISODateInTZ();
   const sellersOnVacationToday = useMemo(() => {
     const today = new Date(todayISOKey + 'T00:00:00');
@@ -1185,38 +1250,48 @@ const handleAddSeller = () => {
             )}
 
             {/* VACACIONES DEL MES */}
-            {monthVacations.length > 0 && (
-              <Card className="border-slate-200/80 bg-white shadow-sm rounded-2xl overflow-hidden">
-                <CardHeader className="bg-amber-50/60 border-b border-amber-100 py-3.5 px-6">
-                  <CardTitle className="text-[11px] font-bold font-heading uppercase text-amber-700 tracking-wider flex items-center justify-between">
-                    <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> Vacaciones del Mes</span>
-                    <span className="text-[10px] font-semibold bg-amber-100 text-amber-600 px-2.5 py-0.5 rounded-full">{monthVacations.length} {monthVacations.length === 1 ? 'persona' : 'personas'}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="divide-y divide-slate-100">
-                    {monthVacations.map((v, i) => {
-                      const daysThisMonth = getVacationDaysInMonth(v, currentDate.getFullYear(), currentDate.getMonth() + 1);
-                      const isActive = sellersOnVacationToday.includes(v.name);
-                      return (
-                        <div key={i} className={`flex items-center gap-4 px-6 py-3.5 ${isActive ? 'bg-amber-50/40' : ''}`}>
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            v.status === 'Completado' ? 'bg-slate-100 text-slate-400' :
-                            v.status === 'En Curso' ? 'bg-amber-100 text-amber-600' :
-                            'bg-blue-50 text-blue-400'
-                          }`}>
-                            {v.status === 'En Curso' ? <Activity className="w-4 h-4" /> : v.status === 'Completado' ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+            <Card className="border-slate-200/80 bg-white shadow-sm rounded-2xl overflow-hidden">
+              <CardHeader className="bg-amber-50/60 border-b border-amber-100 py-3.5 px-6">
+                <CardTitle className="text-[11px] font-bold font-heading uppercase text-amber-700 tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> Vacaciones del Mes</span>
+                  <div className="flex items-center gap-2">
+                    {monthVacations.length > 0 && <span className="text-[10px] font-semibold bg-amber-100 text-amber-600 px-2.5 py-0.5 rounded-full">{monthVacations.length} {monthVacations.length === 1 ? 'persona' : 'personas'}</span>}
+                    <button onClick={() => setShowVacationModal(true)} className="text-[10px] font-bold bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600 transition-colors flex items-center gap-1">
+                      <Plus className="w-3 h-3" /> Agregar
+                    </button>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {monthVacations.length === 0 ? (
+                  <div className="px-6 py-8 text-center text-slate-400 text-sm">
+                    No hay vacaciones programadas este mes
+                  </div>
+                ) : (
+                <div className="divide-y divide-slate-100">
+                  {monthVacations.map((v, i) => {
+                    const daysThisMonth = getVacationDaysInMonth(v, currentDate.getFullYear(), currentDate.getMonth() + 1);
+                    const isActive = sellersOnVacationToday.includes(v.name);
+                    return (
+                      <div key={i} className={`flex items-center gap-4 px-6 py-3.5 ${isActive ? 'bg-amber-50/40' : ''}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          v.status === 'Completado' ? 'bg-slate-100 text-slate-400' :
+                          v.status === 'En Curso' ? 'bg-amber-100 text-amber-600' :
+                          'bg-blue-50 text-blue-400'
+                        }`}>
+                          {v.status === 'En Curso' ? <Activity className="w-4 h-4" /> : v.status === 'Completado' ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold font-heading text-slate-800">{v.name}</span>
+                            {isActive && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 tracking-wide">Ausente hoy</span>}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold font-heading text-slate-800">{v.name}</span>
-                              {isActive && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 tracking-wide">Ausente hoy</span>}
-                            </div>
-                            <p className="text-[11px] text-slate-400 font-medium mt-0.5">{v.type}</p>
-                            <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-                              {new Date(v.start + 'T00:00:00').toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })} - {new Date(v.end + 'T00:00:00').toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })}
-                            </p>
-                          </div>
+                          <p className="text-[11px] text-slate-400 font-medium mt-0.5">{v.type}</p>
+                          <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                            {new Date(v.start + 'T00:00:00').toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })} - {new Date(v.end + 'T00:00:00').toLocaleDateString('es-HN', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
                           <div className="text-right shrink-0">
                             <p className="text-sm font-bold font-heading text-slate-700">{daysThisMonth}d</p>
                             <p className={`text-[10px] font-semibold ${
@@ -1225,10 +1300,20 @@ const handleAddSeller = () => {
                               'text-blue-400'
                             }`}>{v.status}</p>
                           </div>
+                          <div className="flex flex-col gap-1">
+                            <button onClick={() => { setEditingVacation(v); setShowVacationModal(true); }} className="text-slate-400 hover:text-blue-500 transition-colors p-1">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleDeleteVacation(v)} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                )}
                   {/* Team summary footer */}
                   <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
@@ -1497,6 +1582,88 @@ const handleAddSeller = () => {
             <input className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" placeholder="Nombre del Vendedor" value={newSellerName} onChange={e => setNewSellerName(e.target.value)} />
             <Button onClick={handleAddSeller} className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-lg font-bold">Crear</Button>
           </div>
+        </DialogContentAny>
+      </Dialog>
+
+      {/* VACATION MODAL */}
+      <Dialog open={showVacationModal} onOpenChange={(open) => { setShowVacationModal(open); if (!open) setEditingVacation(null); }}>
+        <DialogContentAny>
+          <DialogHeader><DialogTitle className="font-heading flex items-center gap-2"><Calendar className="w-5 h-5 text-amber-600" /> {editingVacation ? 'Editar' : 'Agregar'} Vacaciones</DialogTitle></DialogHeader>
+          {(() => {
+            const [vacName, setVacName] = useState(editingVacation?.name || '');
+            const [vacType, setVacType] = useState(editingVacation?.type || 'Vacaciones');
+            const [vacStart, setVacStart] = useState(editingVacation?.start || toISODateInTZ());
+            const [vacEnd, setVacEnd] = useState(editingVacation?.end || toISODateInTZ());
+            const [vacStatus, setVacStatus] = useState<'Completado' | 'En Curso' | 'Programado'>(editingVacation?.status || 'Programado');
+            
+            useEffect(() => {
+              if (editingVacation) {
+                setVacName(editingVacation.name);
+                setVacType(editingVacation.type);
+                setVacStart(editingVacation.start);
+                setVacEnd(editingVacation.end);
+                setVacStatus(editingVacation.status);
+              } else {
+                setVacName('');
+                setVacType('Vacaciones');
+                setVacStart(toISODateInTZ());
+                setVacEnd(toISODateInTZ());
+                setVacStatus('Programado');
+              }
+            }, [editingVacation]);
+            
+            const calcDays = () => {
+              const start = new Date(vacStart + 'T00:00:00');
+              const end = new Date(vacEnd + 'T00:00:00');
+              return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+            };
+            
+            return (
+              <div className="space-y-4 py-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nombre</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacName} onChange={e => setVacName(e.target.value)}>
+                    <option value="">Seleccionar...</option>
+                    {currentMonthData.sellers.filter(s => (s.status || 'active') === 'active').map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tipo</label>
+                  <input className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacType} onChange={e => setVacType(e.target.value)} placeholder="Vacaciones, Dia libre, etc." />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Inicio</label>
+                    <input type="date" className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacStart} onChange={e => setVacStart(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Fin</label>
+                    <input type="date" className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacEnd} onChange={e => setVacEnd(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Estado</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacStatus} onChange={e => setVacStatus(e.target.value as any)}>
+                    <option value="Programado">Programado</option>
+                    <option value="En Curso">En Curso</option>
+                    <option value="Completado">Completado</option>
+                  </select>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-3 text-center">
+                  <span className="text-amber-700 font-bold">{calcDays()} dias</span>
+                </div>
+                <Button 
+                  onClick={() => handleSaveVacation({ name: vacName, type: vacType, start: vacStart, end: vacEnd, days: calcDays(), status: vacStatus })} 
+                  disabled={!vacName}
+                  className="w-full bg-amber-500 hover:bg-amber-600 h-12 text-lg font-bold"
+                >
+                  {editingVacation ? 'Guardar Cambios' : 'Agregar'}
+                </Button>
+              </div>
+            );
+          })()}
         </DialogContentAny>
       </Dialog>
 
