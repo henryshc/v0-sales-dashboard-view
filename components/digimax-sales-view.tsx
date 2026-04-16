@@ -9,7 +9,7 @@ import {
   Scale, Sparkles, BrainCircuit, AlertTriangle, Target,
   Smartphone, Users, Zap, Activity, Flame, Clock, Award, Star, Wifi,
   Pause, RotateCcw, UserX, FileText, MoreVertical,
-  Bell, Lightbulb, Play, Download, Lock, Unlock, ShieldCheck, Pencil
+  Bell, Lightbulb, Play, Download, Lock, Unlock, ShieldCheck, Pencil, Plus
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
