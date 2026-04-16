@@ -1314,22 +1314,21 @@ const handleDeleteSeller = (id: number) => {
                   })}
                 </div>
                 )}
-                  {/* Team summary footer */}
-                  <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
-                      <Users className="w-3.5 h-3.5" />
-                      <span>Equipo este mes: <strong className="text-slate-700">{currentMonthData.sellers.filter(s => (s.status || 'active') === 'active').length}</strong> vendedores</span>
-                    </div>
-                    {sellersOnVacationToday.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-amber-600 font-semibold">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        <span>{sellersOnVacationToday.length} en vacaciones hoy</span>
-                      </div>
-                    )}
+                {/* Team summary footer */}
+                <div className="border-t border-slate-100 px-6 py-3 bg-slate-50/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>Equipo este mes: <strong className="text-slate-700">{currentMonthData.sellers.filter(s => (s.status || 'active') === 'active').length}</strong> vendedores</span>
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  {sellersOnVacationToday.length > 0 && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-amber-600 font-semibold">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>{sellersOnVacationToday.length} en vacaciones hoy</span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* CHANGE LOG (collapsed by default) */}
             {(currentMonthData.changeLog?.length ?? 0) > 0 && (
