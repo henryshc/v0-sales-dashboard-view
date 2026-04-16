@@ -502,6 +502,87 @@ const ProgressRing = ({ value, max, size = 80, strokeWidth = 6, color = '#6366f1
 // PIN de seguridad (configurable)
 const EDIT_PIN = '1234'; // Cambiar en produccion
 
+// VacationForm component - extracted to avoid hooks rules violation
+const VacationForm = ({ editingVacation, sellers, onSave }: { 
+  editingVacation: VacationEntry | null; 
+  sellers: Seller[]; 
+  onSave: (vacation: VacationEntry) => void;
+}) => {
+  const [vacName, setVacName] = useState(editingVacation?.name || '');
+  const [vacType, setVacType] = useState(editingVacation?.type || 'Vacaciones');
+  const [vacStart, setVacStart] = useState(editingVacation?.start || toISODateInTZ());
+  const [vacEnd, setVacEnd] = useState(editingVacation?.end || toISODateInTZ());
+  const [vacStatus, setVacStatus] = useState<'Completado' | 'En Curso' | 'Programado'>(editingVacation?.status || 'Programado');
+  
+  useEffect(() => {
+    if (editingVacation) {
+      setVacName(editingVacation.name);
+      setVacType(editingVacation.type);
+      setVacStart(editingVacation.start);
+      setVacEnd(editingVacation.end);
+      setVacStatus(editingVacation.status);
+    } else {
+      setVacName('');
+      setVacType('Vacaciones');
+      setVacStart(toISODateInTZ());
+      setVacEnd(toISODateInTZ());
+      setVacStatus('Programado');
+    }
+  }, [editingVacation]);
+  
+  const calcDays = () => {
+    const start = new Date(vacStart + 'T00:00:00');
+    const end = new Date(vacEnd + 'T00:00:00');
+    return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  };
+  
+  return (
+    <div className="space-y-4 py-4">
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nombre</label>
+        <select className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacName} onChange={e => setVacName(e.target.value)}>
+          <option value="">Seleccionar...</option>
+          {sellers.map(s => (
+            <option key={s.id} value={s.name}>{s.name}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tipo</label>
+        <input className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacType} onChange={e => setVacType(e.target.value)} placeholder="Vacaciones, Dia libre, etc." />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Inicio</label>
+          <input type="date" className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacStart} onChange={e => setVacStart(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Fin</label>
+          <input type="date" className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacEnd} onChange={e => setVacEnd(e.target.value)} />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Estado</label>
+        <select className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacStatus} onChange={e => setVacStatus(e.target.value as 'Completado' | 'En Curso' | 'Programado')}>
+          <option value="Programado">Programado</option>
+          <option value="En Curso">En Curso</option>
+          <option value="Completado">Completado</option>
+        </select>
+      </div>
+      <div className="bg-amber-50 rounded-lg p-3 text-center">
+        <span className="text-amber-700 font-bold">{calcDays()} dias</span>
+      </div>
+      <Button 
+        onClick={() => onSave({ name: vacName, type: vacType, start: vacStart, end: vacEnd, days: calcDays(), status: vacStatus })} 
+        disabled={!vacName}
+        className="w-full bg-amber-500 hover:bg-amber-600 h-12 text-lg font-bold"
+      >
+        {editingVacation ? 'Guardar Cambios' : 'Agregar'}
+      </Button>
+    </div>
+  );
+};
+
 const DigimaxSalesView = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'compare' | 'history' | 'ai'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
@@ -1588,81 +1669,11 @@ const handleDeleteSeller = (id: number) => {
       <Dialog open={showVacationModal} onOpenChange={(open) => { setShowVacationModal(open); if (!open) setEditingVacation(null); }}>
         <DialogContentAny>
           <DialogHeader><DialogTitle className="font-heading flex items-center gap-2"><Calendar className="w-5 h-5 text-amber-600" /> {editingVacation ? 'Editar' : 'Agregar'} Vacaciones</DialogTitle></DialogHeader>
-          {(() => {
-            const [vacName, setVacName] = useState(editingVacation?.name || '');
-            const [vacType, setVacType] = useState(editingVacation?.type || 'Vacaciones');
-            const [vacStart, setVacStart] = useState(editingVacation?.start || toISODateInTZ());
-            const [vacEnd, setVacEnd] = useState(editingVacation?.end || toISODateInTZ());
-            const [vacStatus, setVacStatus] = useState<'Completado' | 'En Curso' | 'Programado'>(editingVacation?.status || 'Programado');
-            
-            useEffect(() => {
-              if (editingVacation) {
-                setVacName(editingVacation.name);
-                setVacType(editingVacation.type);
-                setVacStart(editingVacation.start);
-                setVacEnd(editingVacation.end);
-                setVacStatus(editingVacation.status);
-              } else {
-                setVacName('');
-                setVacType('Vacaciones');
-                setVacStart(toISODateInTZ());
-                setVacEnd(toISODateInTZ());
-                setVacStatus('Programado');
-              }
-            }, [editingVacation]);
-            
-            const calcDays = () => {
-              const start = new Date(vacStart + 'T00:00:00');
-              const end = new Date(vacEnd + 'T00:00:00');
-              return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-            };
-            
-            return (
-              <div className="space-y-4 py-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Nombre</label>
-                  <select className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacName} onChange={e => setVacName(e.target.value)}>
-                    <option value="">Seleccionar...</option>
-                    {currentMonthData.sellers.filter(s => (s.status || 'active') === 'active').map(s => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tipo</label>
-                  <input className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacType} onChange={e => setVacType(e.target.value)} placeholder="Vacaciones, Dia libre, etc." />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Inicio</label>
-                    <input type="date" className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacStart} onChange={e => setVacStart(e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Fin</label>
-                    <input type="date" className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacEnd} onChange={e => setVacEnd(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Estado</label>
-                  <select className="w-full border border-slate-200 p-3 rounded-lg font-bold outline-none focus:border-amber-500" value={vacStatus} onChange={e => setVacStatus(e.target.value as any)}>
-                    <option value="Programado">Programado</option>
-                    <option value="En Curso">En Curso</option>
-                    <option value="Completado">Completado</option>
-                  </select>
-                </div>
-                <div className="bg-amber-50 rounded-lg p-3 text-center">
-                  <span className="text-amber-700 font-bold">{calcDays()} dias</span>
-                </div>
-                <Button 
-                  onClick={() => handleSaveVacation({ name: vacName, type: vacType, start: vacStart, end: vacEnd, days: calcDays(), status: vacStatus })} 
-                  disabled={!vacName}
-                  className="w-full bg-amber-500 hover:bg-amber-600 h-12 text-lg font-bold"
-                >
-                  {editingVacation ? 'Guardar Cambios' : 'Agregar'}
-                </Button>
-              </div>
-            );
-          })()}
+          <VacationForm 
+            editingVacation={editingVacation}
+            sellers={currentMonthData.sellers.filter(s => (s.status || 'active') === 'active')}
+            onSave={handleSaveVacation}
+          />
         </DialogContentAny>
       </Dialog>
 
