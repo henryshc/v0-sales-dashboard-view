@@ -63,7 +63,9 @@ export default function HistorialPage() {
   }
 
   const getMonthStats = (monthData: any) => {
-    const sellers = monthData.sellers || []
+    const allSellers = monthData.sellers || []
+    // Filter only active sellers for stats
+    const sellers = allSellers.filter((s: any) => (s.status || 'active') === 'active')
     let salesTotal = 0, salesTarget = 0
     let creditsTotal = 0, creditsTarget = 0
     let accTotal = 0, accTarget = 0
@@ -221,7 +223,7 @@ export default function HistorialPage() {
 
                   <div className="p-4">
                     <h4 className="font-black text-slate-600 uppercase text-xs tracking-widest mb-3 flex items-center gap-2">
-                      <Users className="w-4 h-4" /> Desempeno por Vendedor
+                      <Users className="w-4 h-4" /> Desempeno por Vendedor (Solo Activos)
                     </h4>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
@@ -238,16 +240,35 @@ export default function HistorialPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {sellers.map((seller: any) => {
+                          {sellers.filter((s: any) => (s.status || 'active') === 'active').map((seller: any) => {
                             const score = calculateSellerScore(seller)
+                            const isTigoMoney = seller.sellerType === 'tigomoney'
                             return (
                               <tr key={seller.id} className="hover:bg-slate-50">
-                                <td className="px-3 py-2 font-bold text-slate-700">{seller.name}</td>
-                                <td className="px-3 py-2 text-right text-slate-600">L. {(seller.metrics?.sales?.achieved || 0).toLocaleString()}</td>
-                                <td className="px-3 py-2 text-right text-slate-600">{seller.metrics?.credits?.achieved || 0}</td>
-                                <td className="px-3 py-2 text-right text-slate-600">{seller.metrics?.accessories?.achieved || 0}</td>
-                                <td className="px-3 py-2 text-right text-slate-600">{seller.metrics?.chips?.achieved || 0}</td>
-                                <td className="px-3 py-2 text-right text-slate-600">L. {(seller.metrics?.epin?.achieved || 0).toLocaleString()}</td>
+                                <td className="px-3 py-2 font-bold text-slate-700">
+                                  {seller.name}
+                                  {isTigoMoney && <span className="ml-1 text-[9px] bg-purple-100 text-purple-600 px-1 py-0.5 rounded">TM</span>}
+                                </td>
+                                <td className="px-3 py-2 text-right text-slate-600">
+                                  <span className="font-bold">L. {(seller.metrics?.sales?.achieved || 0).toLocaleString()}</span>
+                                  <span className="text-slate-400 text-[10px] block">/ {((seller.metrics?.sales?.target || 0) / 1000).toFixed(0)}k</span>
+                                </td>
+                                <td className="px-3 py-2 text-right text-slate-600">
+                                  <span className="font-bold">{seller.metrics?.credits?.achieved || 0}</span>
+                                  <span className="text-slate-400 text-[10px] block">/ {seller.metrics?.credits?.target || 0}</span>
+                                </td>
+                                <td className="px-3 py-2 text-right text-slate-600">
+                                  <span className="font-bold">{seller.metrics?.accessories?.achieved || 0}</span>
+                                  <span className="text-slate-400 text-[10px] block">/ {seller.metrics?.accessories?.target || 0}</span>
+                                </td>
+                                <td className="px-3 py-2 text-right text-slate-600">
+                                  <span className="font-bold">{seller.metrics?.chips?.achieved || 0}</span>
+                                  <span className="text-slate-400 text-[10px] block">/ {seller.metrics?.chips?.target || 0}</span>
+                                </td>
+                                <td className="px-3 py-2 text-right text-slate-600">
+                                  <span className={`font-bold ${isTigoMoney ? 'text-purple-600' : ''}`}>L. {(seller.metrics?.epin?.achieved || 0).toLocaleString()}</span>
+                                  <span className="text-slate-400 text-[10px] block">/ {((seller.metrics?.epin?.target || 0) / 1000).toFixed(0)}k</span>
+                                </td>
                                 <td className="px-3 py-2 text-right text-slate-600 font-bold">{seller.celulares || 0}</td>
                                 <td className="px-3 py-2 text-center">
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold ${

@@ -9,7 +9,7 @@ import {
   Scale, Sparkles, BrainCircuit, AlertTriangle, Target,
   Smartphone, Users, Zap, Activity, Flame, Clock, Award, Star, Wifi,
   Pause, RotateCcw, UserX, FileText, MoreVertical,
-  Bell, Lightbulb, Play, Download, Lock, Unlock, ShieldCheck
+  Bell, Lightbulb, Play, Download, Lock, Unlock, ShieldCheck, Pencil
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -1812,6 +1812,7 @@ const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onSta
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h4 className={`font-bold font-heading text-sm truncate ${!isActive ? 'text-slate-400' : 'text-slate-800'}`}>{seller.name}</h4>
+              {seller.sellerType === 'tigomoney' && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-600">TigoMoney</span>}
               {!isActive && <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${statusInfo.bg} ${statusInfo.color}`}>{statusInfo.label}</span>}
               {isEditing && (
                 <div className="relative">

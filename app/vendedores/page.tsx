@@ -64,7 +64,9 @@ export default function VendedoresPage() {
 
   const months = useMemo(() => Object.keys(history).sort(), [history])
   const currentData = history[selectedMonth]
-  const sellers = currentData?.sellers || []
+  const allSellers = currentData?.sellers || []
+  // Filter only active sellers for the report
+  const sellers = allSellers.filter((s: any) => (s.status || 'active') === 'active')
 
   const rankedSellers = useMemo(() => {
     return [...sellers]
@@ -227,7 +229,10 @@ export default function VendedoresPage() {
                               {i + 1}
                             </span>
                             <div>
-                              <p className="font-black text-slate-800 text-sm">{s.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-black text-slate-800 text-sm">{s.name}</p>
+                                {s.sellerType === 'tigomoney' && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-600">TigoMoney</span>}
+                              </div>
                               <p className="text-[10px] text-slate-400 font-medium">
                                 L. {(s.metrics?.sales?.achieved || 0).toLocaleString()} | {s.celulares || 0} cel. {s.celularesCredito ? `(${s.celularesCredito} cred)` : ''}
                               </p>
