@@ -666,6 +666,10 @@ const DigimaxSalesView = () => {
             globalTargets: { ...DEFAULT_GLOBAL_TARGETS, ...(monthObj?.globalTargets || {}) },
             modifiedDays: Array.isArray(monthObj?.modifiedDays) ? monthObj.modifiedDays : [],
             lastModifiedAt: monthObj?.lastModifiedAt || null,
+            vacations: Array.isArray(monthObj?.vacations) ? monthObj.vacations : [],
+            isClosed: !!monthObj?.isClosed,
+            closedAt: monthObj?.closedAt || null,
+            changeLog: Array.isArray(monthObj?.changeLog) ? monthObj.changeLog : [],
           };
         });
         setHistory(patchedHistory);
