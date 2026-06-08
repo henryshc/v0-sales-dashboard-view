@@ -1169,10 +1169,13 @@ const handleDeleteSeller = (id: number) => {
   const bestEpin = useMemo(() => getBestPerformer(activeSellersList, 'epin'), [activeSellersList]);
   const bestOverall = useMemo(() => getBestOverall(activeSellersList), [activeSellersList]);
 
-  // Mostrar el popup "Vendedor del Mes" automaticamente al entrar al Panel de cada mes.
-  // Solo se muestra una vez por mes por sesion, y solo si hay un lider con datos.
+  // Mostrar el popup "Vendedor del Mes" automaticamente al entrar al Panel.
+  // SOLO en meses CERRADOS: que ya terminaron o que se cerraron manualmente.
+  // Nunca aparece durante el mes en curso. Se muestra una vez por mes por sesion.
   useEffect(() => {
     if (isLoading || currentView !== 'dashboard') return;
+    const isClosedMonth = !paceMetrics.isCurrentMonth || !!currentMonthData.isClosed;
+    if (!isClosedMonth) return;
     if (shownMvpRef.current.has(monthKey)) return;
     const ranked = [...activeSellersList]
       .map(s => ({ s, score: calculateScore(s) }))
@@ -1182,7 +1185,7 @@ const handleDeleteSeller = (id: number) => {
     shownMvpRef.current.add(monthKey);
     setMvpSeller(ranked[0].s);
     setShowMvp(true);
-  }, [isLoading, currentView, monthKey, activeSellersList]);
+  }, [isLoading, currentView, monthKey, activeSellersList, paceMetrics.isCurrentMonth, currentMonthData.isClosed]);
 
   if (isLoading) {
     return (
