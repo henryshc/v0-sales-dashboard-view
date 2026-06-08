@@ -41,14 +41,22 @@ type CreditBreakdown = {
 // Tipo de vendedor para medir KPIs diferentes
 type SellerType = 'piso' | 'tigomoney';
 
+// Leads generados (KPI principal del rol transaccional / TigoMoney)
+type LeadsMap = {
+  credito: Metric;   // Personas generadas con interes en CREDITO
+  home: Metric;      // Personas generadas con interes en HOME
+  pospago: Metric;   // Personas generadas con interes en POSPAGO
+};
+
 type Seller = {
   id: number;
   name: string;
   celulares: number;
-  celularesCredito?: number;      // Celulares que aplican a credito
-  sellerType?: SellerType;        // Tipo de vendedor (piso = default, tigomoney = solo EPIN)
+  celularesCredito?: number;      // Celulares que aplican a credito (elegibles)
+  sellerType?: SellerType;        // Tipo de vendedor (piso = default, tigomoney = transaccional)
   weights: WeightsMap;
   metrics: MetricsMap;
+  leads?: LeadsMap;               // KPI de leads para vendedor transaccional
   creditBreakdown?: CreditBreakdown; // Desglose de creditos por financiera
   // Estado del vendedor
   status?: SellerStatus;
@@ -345,7 +353,7 @@ const JAN_COMMISSIONS: Commissions = { tigo: 111002, krediya: 4015, ola: 14700 }
 
 const FEB_2026_DATA: Seller[] = [
   { id: 8, name: 'NICOLE', celulares: 56, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 167389, target: 180000 }, credits: { achieved: 21, target: 25 }, accessories: { achieved: 83, target: 70 }, chips: { achieved: 42, target: 60 }, epin: { achieved: 1092, target: 1560 } }) },
-  { id: 3, name: 'JAZMIN', celulares: 5, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, sellerType: 'tigomoney', weights: { sales: 0.05, credits: 0.05, accessories: 0.05, chips: 0.05, epin: 0.80 }, metrics: makeMetrics({ sales: { achieved: 17866, target: 30000 }, credits: { achieved: 4, target: 5 }, accessories: { achieved: 8, target: 10 }, chips: { achieved: 6, target: 10 }, epin: { achieved: 169919, target: 190000 } }) },
+  { id: 3, name: 'JAZMIN', celulares: 5, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, sellerType: 'tigomoney', leads: { credito: { achieved: 12, target: 20 }, home: { achieved: 6, target: 10 }, pospago: { achieved: 9, target: 15 } }, weights: { sales: 0.05, credits: 0.05, accessories: 0.05, chips: 0.05, epin: 0.80 }, metrics: makeMetrics({ sales: { achieved: 17866, target: 30000 }, credits: { achieved: 4, target: 5 }, accessories: { achieved: 8, target: 10 }, chips: { achieved: 6, target: 10 }, epin: { achieved: 169919, target: 190000 } }) },
   { id: 5, name: 'RIESI', celulares: 44, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 135876, target: 180000 }, credits: { achieved: 17, target: 25 }, accessories: { achieved: 55, target: 80 }, chips: { achieved: 45, target: 80 }, epin: { achieved: 44283, target: 40000 } }) },
   { id: 7, name: 'LARITZA', celulares: 52, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 148932, target: 220000 }, credits: { achieved: 18, target: 30 }, accessories: { achieved: 62, target: 80 }, chips: { achieved: 38, target: 80 }, epin: { achieved: 2847, target: 0 } }) },
   { id: 4, name: 'JEAMIE', celulares: 38, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 112567, target: 220000 }, credits: { achieved: 12, target: 30 }, accessories: { achieved: 48, target: 80 }, chips: { achieved: 35, target: 70 }, epin: { achieved: 8934, target: 0 } }) },
@@ -358,7 +366,7 @@ const FEB_COMMISSIONS: Commissions = { tigo: 59282, krediya: 0, ola: 9820 };
 const MAR_2026_DATA: Seller[] = [
   { id: 1, name: 'JUAN CARLOS', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 243000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 60 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 20000 } }) },
   { id: 2, name: 'MATILDE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 178000 }, credits: { achieved: 0, target: 12 }, accessories: { achieved: 0, target: 70 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 0 } }) },
-  { id: 3, name: 'JAZMIN', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, sellerType: 'tigomoney', weights: { sales: 0.05, credits: 0.05, accessories: 0.05, chips: 0.05, epin: 0.80 }, metrics: makeMetrics({ sales: { achieved: 0, target: 30000 }, credits: { achieved: 0, target: 5 }, accessories: { achieved: 0, target: 10 }, chips: { achieved: 0, target: 10 }, epin: { achieved: 0, target: 190000 } }) },
+  { id: 3, name: 'JAZMIN', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, sellerType: 'tigomoney', leads: { credito: { achieved: 0, target: 20 }, home: { achieved: 0, target: 10 }, pospago: { achieved: 0, target: 15 } }, weights: { sales: 0.05, credits: 0.05, accessories: 0.05, chips: 0.05, epin: 0.80 }, metrics: makeMetrics({ sales: { achieved: 0, target: 30000 }, credits: { achieved: 0, target: 5 }, accessories: { achieved: 0, target: 10 }, chips: { achieved: 0, target: 10 }, epin: { achieved: 0, target: 190000 } }) },
   { id: 4, name: 'JEAMIE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 218000 }, credits: { achieved: 0, target: 30 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 70 }, epin: { achieved: 0, target: 0 } }) },
   { id: 5, name: 'RIESI', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 198000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 80 }, chips: { achieved: 0, target: 80 }, epin: { achieved: 0, target: 40000 } }) },
   { id: 8, name: 'NICOLE', celulares: 0, celularesCredito: 0, creditBreakdown: { ola: 0, krediya: 0, oi: 0 }, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 243000 }, credits: { achieved: 0, target: 25 }, accessories: { achieved: 0, target: 70 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 1560 } }) },
@@ -422,7 +430,36 @@ const getEffectiveWeights = (seller: Seller): WeightsMap => {
   return BASE;
 };
 
+const EMPTY_LEADS: LeadsMap = {
+  credito: { achieved: 0, target: 0 },
+  home: { achieved: 0, target: 0 },
+  pospago: { achieved: 0, target: 0 },
+};
+
+// Tasa de conversion a credito = creditos hechos / celulares elegibles a credito
+const getCreditConversion = (seller: Seller): { eligible: number; done: number; pct: number } => {
+  const eligible = seller.celularesCredito || 0;
+  const done = seller.metrics?.credits?.achieved || 0;
+  const pct = eligible > 0 ? (done / eligible) * 100 : 0;
+  return { eligible, done, pct };
+};
+
+// Score del KPI de leads (vendedor transaccional / TigoMoney)
+const calculateLeadsScore = (seller: Seller): number => {
+  const leads = seller.leads || EMPTY_LEADS;
+  const parts: (keyof LeadsMap)[] = ['credito', 'home', 'pospago'];
+  const active = parts.filter(k => (leads[k]?.target || 0) > 0);
+  if (active.length === 0) return 0;
+  const sum = active.reduce((acc, k) => acc + getKpiPercent(leads[k].achieved, leads[k].target), 0);
+  return sum / active.length;
+};
+
 const calculateScore = (seller: Seller): number => {
+  // Vendedor transaccional: su KPI principal son los leads generados.
+  // Las metas de venta son simbolicas y NO penalizan su score.
+  if (seller.sellerType === 'tigomoney') {
+    return calculateLeadsScore(seller);
+  }
   const w = getEffectiveWeights(seller);
   return (['sales', 'credits', 'accessories', 'chips', 'epin'] as MetricKey[]).reduce((sum, k) => {
     const pct = getKpiPercent(seller.metrics[k].achieved, seller.metrics[k].target);
@@ -639,6 +676,12 @@ const DigimaxSalesView = () => {
             name: String(s.name || '').toUpperCase(),
             celulares: safeNumber(s.celulares, 0),
             celularesCredito: safeNumber(s.celularesCredito, 0),
+            sellerType: s.sellerType === 'tigomoney' ? 'tigomoney' : 'piso',
+            leads: s.leads ? {
+              credito: { achieved: safeNumber(s.leads?.credito?.achieved), target: safeNumber(s.leads?.credito?.target) },
+              home: { achieved: safeNumber(s.leads?.home?.achieved), target: safeNumber(s.leads?.home?.target) },
+              pospago: { achieved: safeNumber(s.leads?.pospago?.achieved), target: safeNumber(s.leads?.pospago?.target) },
+            } : undefined,
             creditBreakdown: {
               ola: safeNumber(s.creditBreakdown?.ola, 0),
               krediya: safeNumber(s.creditBreakdown?.krediya, 0),
@@ -708,15 +751,19 @@ const currentMonthData: MonthData = useMemo(() => {
   // HANDLERS
   const changeMonth = (offset: number) => { const nd = new Date(currentDate); nd.setMonth(nd.getMonth() + offset); setCurrentDate(nd); setIsEditing(false); };
 
-  const handleSellerChange = (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi', value: string, isTarget = false) => {
+  const handleSellerChange = (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi' | 'leadCredito' | 'leadHome' | 'leadPospago', value: string, isTarget = false) => {
     const currentSellers = [...currentMonthData.sellers];
     const idx = currentSellers.findIndex(s => s.id === id);
     if (idx === -1) return;
     const updated = { ...currentSellers[idx] };
+    const leadField = metricKey === 'leadCredito' ? 'credito' : metricKey === 'leadHome' ? 'home' : metricKey === 'leadPospago' ? 'pospago' : null;
     if (metricKey === 'celulares') { 
       updated.celulares = parseInt(value) || 0; 
     } else if (metricKey === 'celularesCredito') {
       updated.celularesCredito = parseInt(value) || 0;
+    } else if (leadField) {
+      const base = updated.leads || { credito: { achieved: 0, target: 0 }, home: { achieved: 0, target: 0 }, pospago: { achieved: 0, target: 0 } };
+      updated.leads = { ...base, [leadField]: { ...base[leadField], [isTarget ? 'target' : 'achieved']: parseInt(value) || 0 } };
     } else if (metricKey === 'creditOla') {
       updated.creditBreakdown = { ...(updated.creditBreakdown || { ola: 0, krediya: 0, oi: 0 }), ola: parseInt(value) || 0 };
       // Update total credits achieved
@@ -731,6 +778,19 @@ const currentMonthData: MonthData = useMemo(() => {
       updated.metrics = { ...updated.metrics, credits: { ...updated.metrics.credits, achieved: (updated.creditBreakdown.ola || 0) + (updated.creditBreakdown.krediya || 0) + (updated.creditBreakdown.oi || 0) } };
     }
     else { updated.metrics = { ...updated.metrics, [metricKey]: { ...updated.metrics[metricKey], [isTarget ? 'target' : 'achieved']: safeNumber(value, 0) } }; }
+    currentSellers[idx] = updated;
+    setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, sellers: currentSellers } }));
+    if (hydratedRef.current) markModified(monthKey);
+  };
+
+  const handleSellerTypeChange = (id: number, type: SellerType) => {
+    const currentSellers = [...currentMonthData.sellers];
+    const idx = currentSellers.findIndex(s => s.id === id);
+    if (idx === -1) return;
+    const updated = { ...currentSellers[idx], sellerType: type };
+    if (type === 'tigomoney' && !updated.leads) {
+      updated.leads = { credito: { achieved: 0, target: 20 }, home: { achieved: 0, target: 10 }, pospago: { achieved: 0, target: 15 } };
+    }
     currentSellers[idx] = updated;
     setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, sellers: currentSellers } }));
     if (hydratedRef.current) markModified(monthKey);
@@ -1475,7 +1535,7 @@ const handleDeleteSeller = (id: number) => {
               {[...currentMonthData.sellers]
                 .sort((a, b) => ((b.metrics.sales.achieved || 0) + (b.metrics.epin?.achieved || 0)) - ((a.metrics.sales.achieved || 0) + (a.metrics.epin?.achieved || 0)))
                 .map(seller => (
-                  <SellerCard key={seller.id} seller={seller} isEditing={isEditing} onChange={handleSellerChange} onDelete={handleDeleteSeller} onOpenConfig={() => setSellerConfig(seller)} onStatusChange={handleStatusChange} />
+                  <SellerCard key={seller.id} seller={seller} isEditing={isEditing} onChange={handleSellerChange} onDelete={handleDeleteSeller} onOpenConfig={() => setSellerConfig(seller)} onStatusChange={handleStatusChange} onSellerTypeChange={handleSellerTypeChange} />
                 ))}
               {isEditing && (
                 <button onClick={() => setShowAddSeller(true)} className="h-full min-h-[120px] border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-500 transition-all">
@@ -1796,13 +1856,14 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
   </div>
 );
 
-const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onStatusChange }: { 
+  const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onStatusChange, onSellerTypeChange }: {
   seller: Seller; 
   isEditing: boolean; 
-  onChange: (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi', value: string, isTarget?: boolean) => void; 
+  onChange: (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi' | 'leadCredito' | 'leadHome' | 'leadPospago', value: string, isTarget?: boolean) => void; 
   onDelete: (id: number) => void; 
   onOpenConfig: () => void;
-  onStatusChange?: (id: number, status: SellerStatus, reason?: ExitReason) => void;
+    onStatusChange?: (id: number, status: SellerStatus, reason?: ExitReason) => void;
+    onSellerTypeChange?: (id: number, type: SellerType) => void;
 }) => {
   const score = calculateScore(seller);
   const [open, setOpen] = useState(false);
@@ -1847,6 +1908,9 @@ const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onSta
                     <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 py-1 min-w-[160px]" onClick={e => e.stopPropagation()}>
                       <button onClick={() => { onOpenConfig(); setStatusMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center gap-2">
                         <Settings className="w-3.5 h-3.5 text-slate-400" /> Configurar KPIs
+                      </button>
+                      <button onClick={() => { onSellerTypeChange?.(seller.id, seller.sellerType === 'tigomoney' ? 'piso' : 'tigomoney'); setStatusMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs hover:bg-purple-50 flex items-center gap-2 text-purple-600">
+                        <RefreshCw className="w-3.5 h-3.5" /> {seller.sellerType === 'tigomoney' ? 'Marcar como Ventas (Piso)' : 'Marcar como TigoMoney'}
                       </button>
                       <div className="border-t border-slate-100 my-1" />
                       {seller.status !== 'active' && (
@@ -1916,6 +1980,18 @@ const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onSta
               {seller.creditBreakdown?.oi > 0 && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-bold">OI: {seller.creditBreakdown.oi}</span>}
             </div>
           )}
+          {/* KPI de Leads para vendedor transaccional (TigoMoney) */}
+          {seller.sellerType === 'tigomoney' && (
+            <div className="bg-purple-50/60 border border-purple-100 rounded-lg p-2.5 space-y-2">
+              <p className="text-[9px] font-bold uppercase text-purple-500 tracking-wider">Personas Generadas con Interes</p>
+              <MetricRow label="Credito" val={seller.leads?.credito.achieved || 0} target={seller.leads?.credito.target || 0} onChange={v => onChange(seller.id, 'leadCredito', v)} onTargetChange={v => onChange(seller.id, 'leadCredito', v, true)} isEditing={isEditing} />
+              <MetricRow label="Home" val={seller.leads?.home.achieved || 0} target={seller.leads?.home.target || 0} onChange={v => onChange(seller.id, 'leadHome', v)} onTargetChange={v => onChange(seller.id, 'leadHome', v, true)} isEditing={isEditing} />
+              <MetricRow label="Pospago" val={seller.leads?.pospago.achieved || 0} target={seller.leads?.pospago.target || 0} onChange={v => onChange(seller.id, 'leadPospago', v)} onTargetChange={v => onChange(seller.id, 'leadPospago', v, true)} isEditing={isEditing} />
+            </div>
+          )}
+          {seller.sellerType === 'tigomoney' && (
+            <p className="text-[9px] text-slate-400 italic -mt-1">Metas de venta simbolicas (no afectan el KPI).</p>
+          )}
           <MetricRow label="Accesorios" val={seller.metrics.accessories.achieved} target={seller.metrics.accessories.target} onChange={v => onChange(seller.id, 'accessories', v)} onTargetChange={v => onChange(seller.id, 'accessories', v, true)} isEditing={isEditing} />
           <MetricRow label="Chips" val={seller.metrics.chips.achieved} target={seller.metrics.chips.target} onChange={v => onChange(seller.id, 'chips', v)} onTargetChange={v => onChange(seller.id, 'chips', v, true)} isEditing={isEditing} />
           <MetricRow label="EPIN" val={seller.metrics.epin.achieved} target={seller.metrics.epin.target} isMoney onChange={v => onChange(seller.id, 'epin', v)} onTargetChange={v => onChange(seller.id, 'epin', v, true)} isEditing={isEditing} />
@@ -1932,6 +2008,25 @@ const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onSta
             </div>
             {isEditing && <button onClick={() => onDelete(seller.id)} className="text-red-500 text-[10px] font-bold uppercase flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition-colors"><Trash2 className="w-3 h-3" /> Eliminar</button>}
           </div>
+          {/* Tasa de conversion a credito: creditos hechos / celulares elegibles */}
+          {!isEditing && (seller.celularesCredito || 0) > 0 && (() => {
+            const conv = getCreditConversion(seller);
+            const good = conv.pct >= 70;
+            return (
+              <div className="bg-slate-50 rounded-lg p-2.5 mt-1">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">Conversion a Credito</span>
+                  <span className={`text-xs font-black ${good ? 'text-emerald-600' : 'text-amber-600'}`}>{conv.pct.toFixed(0)}%</span>
+                </div>
+                <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mb-1">
+                  <div className={`h-full rounded-full ${good ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(conv.pct, 100)}%` }} />
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  <span className="font-bold text-slate-700">{conv.done}</span> creditos de <span className="font-bold text-blue-600">{conv.eligible}</span> elegibles
+                </p>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

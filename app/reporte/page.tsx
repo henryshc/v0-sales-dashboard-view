@@ -36,7 +36,24 @@ const getEffectiveWeights = (s: any) => {
   return base
 }
 
+const LEAD_DEFS = [
+  { key: 'credito', label: 'Interes en Credito' },
+  { key: 'home', label: 'Interes en Home' },
+  { key: 'pospago', label: 'Interes en Pospago' },
+] as const
+
+const calcLeadsScore = (s: any) => {
+  const leads = s.leads
+  if (!leads) return 0
+  const active = LEAD_DEFS.filter(d => (leads[d.key]?.target || 0) > 0)
+  if (active.length === 0) return 0
+  const sum = active.reduce((acc, d) => acc + getPercent(leads[d.key].achieved || 0, leads[d.key].target || 0), 0)
+  return sum / active.length
+}
+
 const calcScore = (s: any) => {
+  // Vendedor transaccional: KPI son los leads, las metas de venta son simbolicas.
+  if (s.sellerType === 'tigomoney') return calcLeadsScore(s)
   const w = getEffectiveWeights(s)
   return (
     getPercent(s.metrics?.sales?.achieved || 0, s.metrics?.sales?.target || 0) * (w.sales || 0) +
@@ -45,6 +62,14 @@ const calcScore = (s: any) => {
     getPercent(s.metrics?.chips?.achieved || 0, s.metrics?.chips?.target || 0) * (w.chips || 0) +
     getPercent(s.metrics?.epin?.achieved || 0, s.metrics?.epin?.target || 0) * (w.epin || 0)
   )
+}
+
+// Tasa de conversion a credito = creditos hechos / celulares elegibles a credito
+const getConversion = (s: any) => {
+  const eligible = s.celularesCredito || 0
+  const done = s.metrics?.credits?.achieved || 0
+  const pct = eligible > 0 ? (done / eligible) * 100 : 0
+  return { eligible, done, pct }
 }
 
 const scoreColor = (p: number) => (p >= 100 ? '#059669' : p >= 80 ? '#ea580c' : '#dc2626')
@@ -344,6 +369,78 @@ function SellerSheet({ seller, rank, total, monthTitle }: {
         </div>
       )}
 
+      {/* Leads (vendedor transaccional / TigoMoney) */}
+      {seller.sellerType === 'tigomoney' && seller.leads && (
+        <div className="mb-6">
+          <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <Target className="w-4 h-4" /> Personas Generadas con Interes
+          </h3>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-purple-600 text-white text-[11px] uppercase tracking-wider">
+                <th className="text-left font-bold px-3 py-2.5">Tipo de Interes</th>
+                <th className="text-right font-bold px-3 py-2.5">Meta</th>
+                <th className="text-right font-bold px-3 py-2.5">Generadas</th>
+                <th className="text-right font-bold px-3 py-2.5">Cumplimiento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {LEAD_DEFS.map(def => {
+                const m = seller.leads[def.key] || { achieved: 0, target: 0 }
+                const p = getPercent(m.achieved, m.target)
+                const c = scoreColor(p)
+                return (
+                  <tr key={def.key} className="border-b border-slate-200">
+                    <td className="px-3 py-3 font-bold text-slate-700 text-sm">{def.label}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-slate-500 text-sm">{fmtNum(m.target)}</td>
+                    <td className="px-3 py-3 text-right font-black text-slate-900 text-sm">{fmtNum(m.achieved)}</td>
+                    <td className="px-3 py-3 text-right">
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="font-black text-sm" style={{ color: c }}>{p.toFixed(1)}%</span>
+                        <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: c }} />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          <p className="text-[10px] text-slate-400 italic mt-2">
+            Rol transaccional: las metas de venta son simbolicas y no afectan el KPI. El indicador principal son las personas generadas con interes.
+          </p>
+        </div>
+      )}
+
+      {/* Conversion a credito */}
+      {(seller.celularesCredito || 0) > 0 && (() => {
+        const conv = getConversion(seller)
+        const c = conv.pct >= 70 ? '#059669' : '#ea580c'
+        return (
+          <div className="mb-6">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <CreditCard className="w-4 h-4" /> Tasa de Conversion a Credito
+            </h3>
+            <div className="border-2 rounded-xl p-4 flex items-center gap-6" style={{ borderColor: c }}>
+              <div className="text-center">
+                <p className="text-5xl font-black leading-none" style={{ color: c }}>{conv.pct.toFixed(0)}%</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">Conversion</p>
+              </div>
+              <div className="flex-1">
+                <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden mb-2">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(conv.pct, 100)}%`, backgroundColor: c }} />
+                </div>
+                <p className="text-sm text-slate-600">
+                  Realizo <span className="font-black text-slate-900">{conv.done}</span> creditos de{' '}
+                  <span className="font-black text-blue-600">{conv.eligible}</span> celulares elegibles a credito.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Signature */}
       <div className="absolute" style={{ bottom: '0.6in', left: '0.6in', right: '0.6in' }}>
         <div className="flex justify-between gap-12 pt-4">
@@ -449,6 +546,37 @@ function GlobalSummarySheet({ sellers, totals, commissions, totalCommissions, mo
           <p className="text-lg font-black text-slate-900">{fmtMoney(totalCommissions)}</p>
         </div>
       </div>
+
+      {/* Conversion a credito global */}
+      {(() => {
+        const eligible = sellers.reduce((acc, s) => acc + (s.celularesCredito || 0), 0)
+        const done = sellers.reduce((acc, s) => acc + (s.metrics?.credits?.achieved || 0), 0)
+        if (eligible <= 0) return null
+        const pct = (done / eligible) * 100
+        const c = pct >= 70 ? '#059669' : '#ea580c'
+        return (
+          <div className="mb-6">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <CreditCard className="w-4 h-4" /> Conversion a Credito del Equipo
+            </h3>
+            <div className="border-2 rounded-xl p-4 flex items-center gap-6" style={{ borderColor: c }}>
+              <div className="text-center">
+                <p className="text-4xl font-black leading-none" style={{ color: c }}>{pct.toFixed(0)}%</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-1">Conversion</p>
+              </div>
+              <div className="flex-1">
+                <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden mb-2">
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: c }} />
+                </div>
+                <p className="text-sm text-slate-600">
+                  El equipo realizo <span className="font-black text-slate-900">{done}</span> creditos de{' '}
+                  <span className="font-black text-blue-600">{eligible}</span> celulares elegibles a credito.
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Ranking table */}
       <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
