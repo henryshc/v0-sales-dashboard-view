@@ -1,7 +1,10 @@
 'use server'
 
 import { generateText, Output } from 'ai'
+import { createGroq } from '@ai-sdk/groq'
 import { z } from 'zod'
+
+const groq = createGroq({ apiKey: process.env.GROQ_API_KEY })
 
 const analysisSchema = z.object({
   resumen: z.string().describe('Un resumen ejecutivo de 2-3 frases sobre el estado general del equipo de ventas este mes.'),
@@ -50,6 +53,9 @@ export async function generateAIAnalysis(payload: {
   pace: { pace: number; projected: number; daysLeft: number; dailyNeeded: number; dailyAvg: number }
 }): Promise<{ ok: true; data: AIAnalysis } | { ok: false; error: string }> {
   try {
+    if (!process.env.GROQ_API_KEY) {
+      return { ok: false, error: 'Falta configurar la clave GROQ_API_KEY. Agregala en la configuracion del proyecto.' }
+    }
     const { monthName, sellers, globalStats, pace } = payload
 
     const sellersText = sellers.map(s => {
@@ -82,7 +88,7 @@ export async function generateAIAnalysis(payload: {
       `Se directo y orientado a la accion. No inventes datos que no esten arriba.`
 
     const { experimental_output } = await generateText({
-      model: 'openai/gpt-5-mini',
+      model: groq('llama-3.3-70b-versatile'),
       prompt,
       experimental_output: Output.object({ schema: analysisSchema }),
     })
