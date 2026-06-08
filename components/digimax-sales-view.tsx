@@ -9,13 +9,15 @@ import {
   Scale, Sparkles, BrainCircuit, AlertTriangle, Target,
   Smartphone, Users, Zap, Activity, Flame, Clock, Award, Star, Wifi,
   Pause, RotateCcw, UserX, FileText, MoreVertical,
-  Bell, Lightbulb, Play, Download, Lock, Unlock, ShieldCheck, Pencil, Plus
+  Bell, Lightbulb, Play, Download, Lock, Unlock, ShieldCheck, Pencil, Plus,
+  Loader2, RefreshCw
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { generateAIAnalysis, type AIAnalysis } from '@/app/actions/ai-analysis';
 
 // ============================================================================
 // 1. TIPOS
@@ -374,30 +376,29 @@ const getKpiPercent = (achieved: number, target: number): number => {
 };
 
 /**
- * Compute effective weights for a seller based on which metrics have target > 0.
- * Base weights: sales 0.45, credits 0.2, accessories 0.2, chips 0.15.
- * If epin target > 0 => epin gets 0.15 and the rest scale down proportionally.
- * If any other metric has target === 0 => its weight redistributes to the rest.
+ * Compute effective weights for a seller.
+ * Uses the seller's CONFIGURED weights (seller.weights) as the source of truth.
+ * Any metric with target === 0 has its weight redistributed proportionally
+ * among the metrics that DO have a target, so the score always sums to the
+ * seller's configured intent and reacts to manual weight changes.
  */
 const getEffectiveWeights = (seller: Seller): WeightsMap => {
-  const BASE: WeightsMap = { sales: 0.45, credits: 0.20, accessories: 0.20, chips: 0.15, epin: 0.0 };
-  const EPIN_WEIGHT = 0.15;
   const keys: MetricKey[] = ['sales', 'credits', 'accessories', 'chips', 'epin'];
 
-  // Determine which metrics are active (have a target > 0)
-  const hasEpin = (seller.metrics.epin?.target ?? 0) > 0;
+  // Start from the seller's configured weights (fallback to defaults)
+  const configured: WeightsMap = { ...DEFAULT_WEIGHTS, ...(seller.weights || {}) };
 
-  if (hasEpin) {
-    // Give EPIN a base weight, scale others down proportionally
-    const scale = (1 - EPIN_WEIGHT); // 0.85
-    BASE.sales = 0.45 * scale;
-    BASE.credits = 0.20 * scale;
-    BASE.accessories = 0.20 * scale;
-    BASE.chips = 0.15 * scale;
-    BASE.epin = EPIN_WEIGHT;
+  // Normalize configured weights to sum to 1 (in case they don't add up to 100%)
+  const configuredTotal = keys.reduce((sum, k) => sum + (configured[k] || 0), 0);
+  const BASE: WeightsMap = { sales: 0, credits: 0, accessories: 0, chips: 0, epin: 0 };
+  if (configuredTotal > 0) {
+    for (const k of keys) BASE[k] = (configured[k] || 0) / configuredTotal;
+  } else {
+    // No configured weights at all -> even split
+    for (const k of keys) BASE[k] = 1 / keys.length;
   }
 
-  // Now remove weight from metrics with target === 0 and redistribute
+  // Remove weight from metrics with target === 0 and redistribute
   let deadWeight = 0;
   let aliveWeight = 0;
   for (const k of keys) {
@@ -1962,11 +1963,60 @@ const GlobalRow = ({ label, val, goal, isMoney }: { label: string; val: number; 
 const AIInsightsView = ({ sellers, globalStats, currentDate, paceMetrics }: { sellers: Seller[]; globalStats: any; currentDate: Date; paceMetrics: any }) => {
   const [simDailySales, setSimDailySales] = useState<number>(paceMetrics.dailyAvg || 0);
   const [showSimulator, setShowSimulator] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   
   const sorted = [...sellers].map(s => ({ ...s, score: calculateScore(s) })).sort((a, b) => b.score - a.score);
   const topSeller = sorted[0];
   const lowSeller = sorted[sorted.length - 1];
   const salesProgress = globalStats.sales.target > 0 ? (globalStats.sales.achieved / globalStats.sales.target) * 100 : 0;
+
+  const runAIAnalysis = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await generateAIAnalysis({
+        monthName: currentDate.toLocaleDateString('es-HN', { month: 'long', year: 'numeric' }),
+        sellers: sorted.filter(s => isSellerActive(s)).map(s => ({
+          name: s.name,
+          score: s.score,
+          sellerType: s.sellerType,
+          celulares: s.celulares || 0,
+          metrics: {
+            sales: { achieved: s.metrics.sales.achieved || 0, target: s.metrics.sales.target || 0 },
+            credits: { achieved: s.metrics.credits.achieved || 0, target: s.metrics.credits.target || 0 },
+            accessories: { achieved: s.metrics.accessories.achieved || 0, target: s.metrics.accessories.target || 0 },
+            chips: { achieved: s.metrics.chips.achieved || 0, target: s.metrics.chips.target || 0 },
+            epin: { achieved: s.metrics.epin?.achieved || 0, target: s.metrics.epin?.target || 0 },
+          },
+        })),
+        globalStats: {
+          sales: globalStats.sales,
+          credits: globalStats.credits,
+          acc: globalStats.acc,
+          chips: globalStats.chips,
+          epin: globalStats.epin,
+        },
+        pace: {
+          pace: paceMetrics.pace || 0,
+          projected: paceMetrics.projected || 0,
+          daysLeft: paceMetrics.daysLeft || 0,
+          dailyNeeded: paceMetrics.dailyNeeded || 0,
+          dailyAvg: paceMetrics.dailyAvg || 0,
+        },
+      });
+      if (res.ok) {
+        setAiAnalysis(res.data);
+      } else {
+        setAiError(res.error);
+      }
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Error al generar el analisis.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const kpiStatus = [
     { label: 'Ventas', achieved: globalStats.sales.achieved, target: globalStats.sales.target },
@@ -2076,6 +2126,90 @@ const AIInsightsView = ({ sellers, globalStats, currentDate, paceMetrics }: { se
           </div>
         </div>
       </div>
+
+      {/* ANALISIS GENERADO POR IA */}
+      <Card className="shadow-sm border-indigo-200">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h3 className="text-xs font-black font-heading text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <BrainCircuit className="w-4 h-4 text-indigo-500" /> Analisis Inteligente
+            </h3>
+            <button
+              onClick={runAIAnalysis}
+              disabled={aiLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-bold uppercase tracking-wider hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+            >
+              {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : aiAnalysis ? <RefreshCw className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {aiLoading ? 'Analizando...' : aiAnalysis ? 'Regenerar' : 'Generar con IA'}
+            </button>
+          </div>
+
+          {aiError && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+              No se pudo generar el analisis: {aiError}
+            </div>
+          )}
+
+          {!aiAnalysis && !aiLoading && !aiError && (
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Presiona <strong className="text-indigo-600">Generar con IA</strong> para que la inteligencia artificial analice el desempeno del equipo y entregue un diagnostico y recomendaciones accionables basadas en los datos reales del mes.
+            </p>
+          )}
+
+          {aiLoading && (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
+              <p className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider animate-pulse">La IA esta analizando tu equipo</p>
+            </div>
+          )}
+
+          {aiAnalysis && !aiLoading && (
+            <div className="space-y-4 animate-in fade-in duration-500">
+              <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-100">
+                <p className="text-[10px] font-black uppercase tracking-wider text-indigo-500 mb-1.5">Resumen Ejecutivo</p>
+                <p className="text-xs text-slate-700 leading-relaxed">{aiAnalysis.resumen}</p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1.5">Diagnostico</p>
+                <p className="text-xs text-slate-700 leading-relaxed">{aiAnalysis.diagnostico}</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600 mb-1 flex items-center gap-1.5"><Trophy className="w-3.5 h-3.5" /> Vendedor Destacado</p>
+                  <p className="text-sm font-bold text-emerald-800">{aiAnalysis.vendedorDestacado.nombre}</p>
+                  <p className="text-[11px] text-emerald-700 mt-1 leading-relaxed">{aiAnalysis.vendedorDestacado.motivo}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-600 mb-1 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Necesita Apoyo</p>
+                  <p className="text-sm font-bold text-amber-800">{aiAnalysis.vendedorEnRiesgo.nombre}</p>
+                  <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">{aiAnalysis.vendedorEnRiesgo.motivo}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5 text-indigo-500" /> Recomendaciones</p>
+                <div className="space-y-2">
+                  {aiAnalysis.recomendaciones.map((rec, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 bg-white">
+                      <span className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase shrink-0 ${
+                        rec.prioridad === 'alta' ? 'bg-red-100 text-red-600' :
+                        rec.prioridad === 'media' ? 'bg-amber-100 text-amber-600' :
+                        'bg-slate-100 text-slate-500'
+                      }`}>{rec.prioridad}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800">{rec.titulo}</p>
+                        <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">{rec.detalle}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* SIMULADOR DE ESCENARIOS */}
       <Card className="shadow-sm border-indigo-200 bg-indigo-50/30">

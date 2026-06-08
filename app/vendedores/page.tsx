@@ -14,8 +14,33 @@ const GOOGLE_SCRIPT_URL =
 
 const DEFAULT_WEIGHTS = { sales: 0.45, credits: 0.2, accessories: 0.2, chips: 0.15, epin: 0.0 }
 
+const METRIC_KEYS = ['sales', 'credits', 'accessories', 'chips', 'epin'] as const
+
+// Calcula los pesos efectivos respetando la configuracion del vendedor.
+// Redistribuye el peso de metricas sin meta (target=0) entre las metricas activas.
+const getEffectiveWeights = (s: any) => {
+  const configured = { ...DEFAULT_WEIGHTS, ...(s.weights || {}) }
+  const total = METRIC_KEYS.reduce((sum, k) => sum + (configured[k] || 0), 0)
+  const base: any = { sales: 0, credits: 0, accessories: 0, chips: 0, epin: 0 }
+  if (total > 0) {
+    METRIC_KEYS.forEach(k => { base[k] = (configured[k] || 0) / total })
+  } else {
+    METRIC_KEYS.forEach(k => { base[k] = 1 / METRIC_KEYS.length })
+  }
+  let dead = 0, alive = 0
+  METRIC_KEYS.forEach(k => {
+    const t = s.metrics?.[k]?.target ?? 0
+    if (t <= 0) { dead += base[k]; base[k] = 0 } else { alive += base[k] }
+  })
+  if (dead > 0 && alive > 0) {
+    const scale = (alive + dead) / alive
+    METRIC_KEYS.forEach(k => { if (base[k] > 0) base[k] *= scale })
+  }
+  return base
+}
+
 const calcScore = (s: any) => {
-  const w = s.weights || DEFAULT_WEIGHTS
+  const w = getEffectiveWeights(s)
   const p = (a: number, t: number) => (t > 0 ? (a / t) * 100 : 0)
   return (
     p(s.metrics?.sales?.achieved || 0, s.metrics?.sales?.target || 0) * (w.sales || 0) +

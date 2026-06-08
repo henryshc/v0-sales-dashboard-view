@@ -19,8 +19,33 @@ const getPercent = (achieved: number, target: number) => {
   return (achieved / target) * 100
 }
 
+const METRIC_KEYS = ['sales', 'credits', 'accessories', 'chips', 'epin'] as const
+
+// Pesos efectivos respetando la configuracion del vendedor y redistribuyendo
+// el peso de metricas sin meta (target=0) entre las metricas activas.
+const getEffectiveWeights = (seller: any) => {
+  const configured = { ...DEFAULT_WEIGHTS, ...(seller.weights || {}) }
+  const total = METRIC_KEYS.reduce((sum, k) => sum + (configured[k] || 0), 0)
+  const base: any = { sales: 0, credits: 0, accessories: 0, chips: 0, epin: 0 }
+  if (total > 0) {
+    METRIC_KEYS.forEach(k => { base[k] = (configured[k] || 0) / total })
+  } else {
+    METRIC_KEYS.forEach(k => { base[k] = 1 / METRIC_KEYS.length })
+  }
+  let dead = 0, alive = 0
+  METRIC_KEYS.forEach(k => {
+    const t = seller.metrics?.[k]?.target ?? 0
+    if (t <= 0) { dead += base[k]; base[k] = 0 } else { alive += base[k] }
+  })
+  if (dead > 0 && alive > 0) {
+    const scale = (alive + dead) / alive
+    METRIC_KEYS.forEach(k => { if (base[k] > 0) base[k] *= scale })
+  }
+  return base
+}
+
 const calculateSellerScore = (seller: any) => {
-  const w = seller.weights || DEFAULT_WEIGHTS
+  const w = getEffectiveWeights(seller)
   const pSales = getPercent(seller.metrics?.sales?.achieved || 0, seller.metrics?.sales?.target || 0)
   const pCredits = getPercent(seller.metrics?.credits?.achieved || 0, seller.metrics?.credits?.target || 0)
   const pAcc = getPercent(seller.metrics?.accessories?.achieved || 0, seller.metrics?.accessories?.target || 0)
