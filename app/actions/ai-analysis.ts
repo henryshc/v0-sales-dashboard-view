@@ -88,7 +88,7 @@ export async function generateAIAnalysis(payload: {
       `Se directo y orientado a la accion. No inventes datos que no esten arriba.`
 
     const { experimental_output } = await generateText({
-      model: groq('llama-3.3-70b-versatile'),
+      model: groq('openai/gpt-oss-20b'),
       prompt,
       experimental_output: Output.object({ schema: analysisSchema }),
     })
