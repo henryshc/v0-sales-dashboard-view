@@ -330,6 +330,19 @@ const makeMetrics = (overrides?: Partial<MetricsMap>): MetricsMap => {
   return { ...base, ...(overrides || {}) };
 };
 
+// Normaliza un vendedor para garantizar tipo y leads, sin importar la fuente
+// (nube, templates JAN/FEB/MAR o plantilla de mes nuevo). JAZMIN es transaccional.
+const normalizeSeller = (s: Seller): Seller => {
+  const name = String(s.name || '').toUpperCase();
+  const isTigoMoney = s.sellerType === 'tigomoney' || name.includes('JAZMIN') || name.includes('JASMIN');
+  if (!isTigoMoney) return s.sellerType ? s : { ...s, sellerType: 'piso' };
+  return {
+    ...s,
+    sellerType: 'tigomoney',
+    leads: s.leads || { credito: { achieved: 0, target: 20 }, home: { achieved: 0, target: 10 }, pospago: { achieved: 0, target: 15 } },
+  };
+};
+
 const getNewMonthTemplate = (): Seller[] => [
   { id: 1, name: 'JUAN CARLOS', celulares: 0, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 243000 }, credits: { achieved: 0, target: 30 }, accessories: { achieved: 0, target: 60 }, chips: { achieved: 0, target: 40 }, epin: { achieved: 0, target: 0 } }) },
   { id: 2, name: 'MATILDE', celulares: 0, weights: { ...DEFAULT_WEIGHTS }, metrics: makeMetrics({ sales: { achieved: 0, target: 178000 }, credits: { achieved: 0, target: 10 }, accessories: { achieved: 0, target: 65 }, chips: { achieved: 0, target: 60 }, epin: { achieved: 0, target: 0 } }) },
@@ -671,17 +684,21 @@ const DigimaxSalesView = () => {
         const patchedHistory: HistoryMap = {};
         Object.keys(rawHistory).forEach(key => {
           const monthObj = rawHistory[key] as MonthData;
-          const sellers = (monthObj?.sellers || []).map(s => ({
+          const sellers = (monthObj?.sellers || []).map(s => {
+            const sname = String(s.name || '').toUpperCase();
+            // Auto-deteccion: JAZMIN es rol transaccional (TigoMoney) aunque la nube no lo tenga guardado
+            const isTigoMoney = s.sellerType === 'tigomoney' || sname.includes('JAZMIN') || sname.includes('JASMIN');
+            return ({
             id: safeNumber(s.id, 0),
-            name: String(s.name || '').toUpperCase(),
+            name: sname,
             celulares: safeNumber(s.celulares, 0),
             celularesCredito: safeNumber(s.celularesCredito, 0),
-            sellerType: s.sellerType === 'tigomoney' ? 'tigomoney' : 'piso',
-            leads: s.leads ? {
+            sellerType: isTigoMoney ? 'tigomoney' : 'piso',
+            leads: isTigoMoney ? (s.leads ? {
               credito: { achieved: safeNumber(s.leads?.credito?.achieved), target: safeNumber(s.leads?.credito?.target) },
               home: { achieved: safeNumber(s.leads?.home?.achieved), target: safeNumber(s.leads?.home?.target) },
               pospago: { achieved: safeNumber(s.leads?.pospago?.achieved), target: safeNumber(s.leads?.pospago?.target) },
-            } : undefined,
+            } : { credito: { achieved: 0, target: 20 }, home: { achieved: 0, target: 10 }, pospago: { achieved: 0, target: 15 } }) : undefined,
             creditBreakdown: {
               ola: safeNumber(s.creditBreakdown?.ola, 0),
               krediya: safeNumber(s.creditBreakdown?.krediya, 0),
@@ -701,7 +718,8 @@ const DigimaxSalesView = () => {
             exitReason: s.exitReason || null,
             suspendedUntil: s.suspendedUntil || null,
             notes: s.notes || '',
-          } as Seller));
+          } as Seller);
+          });
           patchedHistory[key] = {
             sellers,
             commissions: { tigo: safeNumber(monthObj?.commissions?.tigo), krediya: safeNumber(monthObj?.commissions?.krediya), ola: safeNumber(monthObj?.commissions?.ola) },
@@ -739,11 +757,12 @@ const DigimaxSalesView = () => {
   }, [history, isLoading]);
 
 const currentMonthData: MonthData = useMemo(() => {
-  if (history[monthKey]) return history[monthKey];
-  if (monthKey === '2026-01') return { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] };
-  if (monthKey === '2026-02') return { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] };
-  if (monthKey === '2026-03') return { sellers: MAR_2026_DATA, commissions: MAR_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] };
-  return { sellers: getNewMonthTemplate(), commissions: { tigo: 0, krediya: 0, ola: 0 }, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] };
+  const withNormalizedSellers = (md: MonthData): MonthData => ({ ...md, sellers: (md.sellers || []).map(normalizeSeller) });
+  if (history[monthKey]) return withNormalizedSellers(history[monthKey]);
+  if (monthKey === '2026-01') return withNormalizedSellers({ sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] });
+  if (monthKey === '2026-02') return withNormalizedSellers({ sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] });
+  if (monthKey === '2026-03') return withNormalizedSellers({ sellers: MAR_2026_DATA, commissions: MAR_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] });
+  return withNormalizedSellers({ sellers: getNewMonthTemplate(), commissions: { tigo: 0, krediya: 0, ola: 0 }, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null, vacations: [] });
   }, [history, monthKey]);
 
   const globalTargets = useMemo<GlobalTargets>(() => currentMonthData.globalTargets || { ...DEFAULT_GLOBAL_TARGETS }, [currentMonthData]);
@@ -1972,7 +1991,7 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
             </div>
           )}
           {/* Show credit breakdown summary when not editing */}
-          {!isEditing && (seller.creditBreakdown?.ola || seller.creditBreakdown?.krediya || seller.creditBreakdown?.oi) && (
+          {!isEditing && ((seller.creditBreakdown?.ola || 0) + (seller.creditBreakdown?.krediya || 0) + (seller.creditBreakdown?.oi || 0)) > 0 && (
             <div className="flex items-center gap-2 text-[10px]">
               <span className="text-slate-400">Desglose:</span>
               {seller.creditBreakdown?.ola > 0 && <span className="px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded font-bold">OLA: {seller.creditBreakdown.ola}</span>}
