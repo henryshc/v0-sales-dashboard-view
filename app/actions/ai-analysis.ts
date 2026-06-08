@@ -50,7 +50,7 @@ export async function generateAIAnalysis(payload: {
     chips: { achieved: number; target: number }
     epin: { achieved: number; target: number }
   }
-  pace: { pace: number; projected: number; daysLeft: number; dailyNeeded: number; dailyAvg: number }
+  pace: { pace: number; projected: number; daysLeft: number; dailyNeeded: number; dailyAvg: number; dayOfMonth?: number; daysInMonth?: number; expectedPct?: number; isCurrentMonth?: boolean }
 }): Promise<{ ok: true; data: AIAnalysis } | { ok: false; error: string }> {
   try {
     if (!process.env.GROQ_API_KEY) {
@@ -69,8 +69,21 @@ export async function generateAIAnalysis(payload: {
         `${s.celulares} celulares vendidos.`
     }).join('\n')
 
+    const dayOfMonth = pace.dayOfMonth || 0
+    const daysInMonth = pace.daysInMonth || 0
+    const expectedPct = pace.expectedPct || 0
+    const isClosed = !pace.isCurrentMonth
+    const dateLine = isClosed
+      ? `El mes de ${monthName} esta CERRADO (los ${daysInMonth} dias ya transcurrieron). Evalua los resultados como definitivos.`
+      : `HOY es el dia ${dayOfMonth} de ${daysInMonth} del mes. Han transcurrido ${dayOfMonth} dias y quedan ${pace.daysLeft}. ` +
+        `El avance ESPERADO para este dia es ~${expectedPct.toFixed(0)}% de cada meta (asumiendo ritmo lineal). ` +
+        `IMPORTANTE: NO evalues el desempeno de forma absoluta. Un vendedor al ${expectedPct.toFixed(0)}% va EN RITMO, no atrasado. ` +
+        `Solo considera "en riesgo" a quien este claramente por debajo de ~${expectedPct.toFixed(0)}% para hoy. ` +
+        `No es justo exigir 100% de la meta cuando el mes aun no termina.`
+
     const prompt = `Eres un analista experto de ventas para una tienda de telefonia movil en Honduras (moneda Lempiras, L.). ` +
       `Analiza el desempeno del equipo del mes de ${monthName} y entrega un analisis profesional, concreto y accionable en espanol.\n\n` +
+      `CONTEXTO TEMPORAL (CRITICO):\n${dateLine}\n\n` +
       `META GLOBAL DE TIENDA:\n` +
       `- Ventas: L.${globalStats.sales.achieved.toLocaleString()} de L.${globalStats.sales.target.toLocaleString()} (${globalStats.sales.target > 0 ? ((globalStats.sales.achieved / globalStats.sales.target) * 100).toFixed(1) : 0}%)\n` +
       `- Creditos: ${globalStats.credits.achieved} de ${globalStats.credits.target}\n` +
@@ -78,13 +91,17 @@ export async function generateAIAnalysis(payload: {
       `- Chips: ${globalStats.chips.achieved} de ${globalStats.chips.target}\n` +
       `- EPIN: L.${globalStats.epin.achieved.toLocaleString()} de L.${globalStats.epin.target.toLocaleString()}\n\n` +
       `RITMO:\n` +
-      `- El equipo va ${pace.pace >= 0 ? pace.pace.toFixed(1) + '% por encima' : Math.abs(pace.pace).toFixed(1) + '% por debajo'} del ritmo esperado.\n` +
+      `- El equipo va ${pace.pace >= 0 ? pace.pace.toFixed(1) + '% por encima' : Math.abs(pace.pace).toFixed(1) + '% por debajo'} del ritmo esperado para hoy.\n` +
       `- Proyeccion de cierre: L.${pace.projected.toLocaleString()}\n` +
       `- Dias restantes: ${pace.daysLeft}\n` +
       `- Venta diaria necesaria para meta: L.${pace.dailyNeeded.toLocaleString()}\n` +
       `- Venta diaria promedio actual: L.${pace.dailyAvg.toLocaleString()}\n\n` +
-      `DESEMPENO POR VENDEDOR:\n${sellersText}\n\n` +
-      `Da recomendaciones especificas mencionando nombres de vendedores y cifras concretas. ` +
+      `DESEMPENO POR VENDEDOR (los porcentajes son sobre la meta TOTAL del mes):\n${sellersText}\n\n` +
+      (isClosed
+        ? `Evalua los porcentajes como resultados finales del mes.`
+        : `Recuerda: compara cada porcentaje contra el ~${expectedPct.toFixed(0)}% esperado para el dia ${dayOfMonth}, NO contra el 100%. ` +
+          `Quien va sobre ${expectedPct.toFixed(0)}% va adelantado; quien va muy por debajo esta en riesgo.`) +
+      ` Da recomendaciones especificas mencionando nombres de vendedores y cifras concretas. ` +
       `Se directo y orientado a la accion. No inventes datos que no esten arriba.`
 
     const { experimental_output } = await generateText({

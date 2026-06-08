@@ -2108,6 +2108,10 @@ const AIInsightsView = ({ sellers, globalStats, currentDate, paceMetrics }: { se
           daysLeft: paceMetrics.daysLeft || 0,
           dailyNeeded: paceMetrics.dailyNeeded || 0,
           dailyAvg: paceMetrics.dailyAvg || 0,
+          dayOfMonth: paceMetrics.dayOfMonth || 0,
+          daysInMonth: paceMetrics.dim || 0,
+          expectedPct: paceMetrics.expectedPct || 0,
+          isCurrentMonth: !!paceMetrics.isCurrentMonth,
         },
       });
       if (res.ok) {
@@ -2148,16 +2152,32 @@ const AIInsightsView = ({ sellers, globalStats, currentDate, paceMetrics }: { se
     alerts.push({ type: 'warning', icon: <Clock className="w-4 h-4" />, title: 'Ritmo Bajo', message: `El equipo va ${Math.abs(paceMetrics.pace).toFixed(0)}% por debajo. Hay que aumentar el ritmo de ventas.` });
   }
   
-  // Alerta: Vendedor con rendimiento muy bajo
-  const criticalSellers = sorted.filter(s => s.score < 30 && isSellerActive(s));
+  // Alerta: Vendedor con ritmo bajo SEGUN EL DIA DEL MES
+  // El umbral no es fijo: depende del % de avance esperado para el dia actual.
+  // Ej. dia 5/28 -> se espera ~18%; dia 25/28 -> se espera ~89%.
+  const expectedPctNow = paceMetrics.expectedPct || 0;
+  const riskRatio = 0.6; // en riesgo si va a menos del 60% del ritmo esperado del dia
+  const riskThreshold = expectedPctNow * riskRatio;
+  const criticalSellers = expectedPctNow > 0
+    ? sorted.filter(s => s.score < riskThreshold && isSellerActive(s))
+    : [];
   if (criticalSellers.length > 0) {
-    alerts.push({ type: 'warning', icon: <Users className="w-4 h-4" />, title: 'Vendedores en Riesgo', message: `${criticalSellers.map(s => s.name).join(', ')} ${criticalSellers.length === 1 ? 'tiene' : 'tienen'} rendimiento menor a 30%.` });
+    const dayCtx = paceMetrics.isCurrentMonth
+      ? `Al dia ${paceMetrics.dayOfMonth}/${paceMetrics.dim} se espera ~${expectedPctNow.toFixed(0)}% de avance. `
+      : `Con el mes cerrado (${expectedPctNow.toFixed(0)}% esperado). `;
+    alerts.push({
+      type: 'warning',
+      icon: <Users className="w-4 h-4" />,
+      title: 'Vendedores en Riesgo',
+      message: `${dayCtx}${criticalSellers.map(s => s.name).join(', ')} ${criticalSellers.length === 1 ? 'va' : 'van'} por debajo del ritmo esperado (menos de ${riskThreshold.toFixed(0)}%).`,
+    });
   }
   
-  // Alerta: KPI muy por debajo
-  const criticalKPIs = kpiStatus.filter(k => k.target > 0 && (k.achieved / k.target) * 100 < 20);
+  // Alerta: KPI muy por debajo del ritmo esperado del dia (umbral relativo, no fijo)
+  const kpiRiskThreshold = expectedPctNow > 0 ? expectedPctNow * 0.5 : 20;
+  const criticalKPIs = kpiStatus.filter(k => k.target > 0 && (k.achieved / k.target) * 100 < kpiRiskThreshold);
   criticalKPIs.forEach(k => {
-    alerts.push({ type: 'danger', icon: <Target className="w-4 h-4" />, title: `${k.label} Critico`, message: `Solo ${((k.achieved / k.target) * 100).toFixed(0)}% de meta alcanzada. Se requiere accion inmediata.` });
+    alerts.push({ type: 'danger', icon: <Target className="w-4 h-4" />, title: `${k.label} Critico`, message: `Solo ${((k.achieved / k.target) * 100).toFixed(0)}% de meta${expectedPctNow > 0 ? ` (se espera ~${expectedPctNow.toFixed(0)}% al dia ${paceMetrics.dayOfMonth})` : ''}. Se requiere accion inmediata.` });
   });
   
   // Alerta positiva: Buen ritmo
