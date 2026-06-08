@@ -1004,7 +1004,8 @@ const handleDeleteSeller = (id: number) => {
   // GLOBAL STATS
   const globalStats = useMemo(() => {
     let salesSellers = 0, credits = 0, acc = 0, chips = 0, phones = 0, epin = 0;
-    currentMonthData.sellers.forEach(s => {
+    // Solo contar vendedores activos para el cumplimiento de tienda
+    currentMonthData.sellers.filter(s => isSellerActive(s)).forEach(s => {
       salesSellers += s.metrics.sales.achieved; credits += s.metrics.credits.achieved;
       acc += s.metrics.accessories.achieved; chips += s.metrics.chips.achieved;
       epin += s.metrics.epin?.achieved || 0; phones += s.celulares || 0;
@@ -1075,12 +1076,13 @@ const handleDeleteSeller = (id: number) => {
     inactive: currentMonthData.sellers.filter(s => s.status === 'inactive').length,
   }), [currentMonthData.sellers]);
 
-  const bestSales = useMemo(() => getBestPerformer(currentMonthData.sellers, 'sales'), [currentMonthData.sellers]);
-  const bestCredits = useMemo(() => getBestPerformer(currentMonthData.sellers, 'credits'), [currentMonthData.sellers]);
-  const bestAccessories = useMemo(() => getBestPerformer(currentMonthData.sellers, 'accessories'), [currentMonthData.sellers]);
-  const bestChips = useMemo(() => getBestPerformer(currentMonthData.sellers, 'chips'), [currentMonthData.sellers]);
-  const bestEpin = useMemo(() => getBestPerformer(currentMonthData.sellers, 'epin'), [currentMonthData.sellers]);
-  const bestOverall = useMemo(() => getBestOverall(currentMonthData.sellers), [currentMonthData.sellers]);
+  const activeSellersList = useMemo(() => currentMonthData.sellers.filter(s => isSellerActive(s)), [currentMonthData.sellers]);
+  const bestSales = useMemo(() => getBestPerformer(activeSellersList, 'sales'), [activeSellersList]);
+  const bestCredits = useMemo(() => getBestPerformer(activeSellersList, 'credits'), [activeSellersList]);
+  const bestAccessories = useMemo(() => getBestPerformer(activeSellersList, 'accessories'), [activeSellersList]);
+  const bestChips = useMemo(() => getBestPerformer(activeSellersList, 'chips'), [activeSellersList]);
+  const bestEpin = useMemo(() => getBestPerformer(activeSellersList, 'epin'), [activeSellersList]);
+  const bestOverall = useMemo(() => getBestOverall(activeSellersList), [activeSellersList]);
 
   if (isLoading) {
     return (
