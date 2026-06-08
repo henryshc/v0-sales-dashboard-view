@@ -10,7 +10,7 @@ import {
   Smartphone, Users, Zap, Activity, Flame, Clock, Award, Star, Wifi,
   Pause, RotateCcw, UserX, FileText, MoreVertical,
   Bell, Lightbulb, Play, Download, Lock, Unlock, ShieldCheck, Pencil, Plus,
-  Loader2, RefreshCw
+  Loader2, RefreshCw, Printer
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -1540,6 +1540,10 @@ const handleDeleteSeller = (id: number) => {
           <Users className="w-5 h-5 transition-transform group-hover:scale-110" />
           <span className="text-[9px] font-semibold uppercase tracking-wide">Equipo</span>
         </Link>
+        <Link href="/reporte" className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-700 transition-all group">
+          <Printer className="w-5 h-5 transition-transform group-hover:scale-110" />
+          <span className="text-[9px] font-semibold uppercase tracking-wide">Reporte</span>
+        </Link>
       </nav>
       {/* NAV DESKTOP */}
       <nav className="hidden md:flex fixed bottom-6 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xl border border-slate-200 shadow-xl shadow-slate-900/5 rounded-2xl px-8 py-3 items-center gap-8 z-50">
@@ -1553,6 +1557,11 @@ const handleDeleteSeller = (id: number) => {
         <Link href="/vendedores" className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-700 transition-all group">
           <Users className="w-5 h-5 group-hover:scale-110 transition-transform" />
           <span className="text-[9px] font-semibold uppercase tracking-wide">Equipo</span>
+        </Link>
+        <div className="w-px h-5 bg-slate-200" />
+        <Link href="/reporte" className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-700 transition-all group">
+          <Printer className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          <span className="text-[9px] font-semibold uppercase tracking-wide">Reporte</span>
         </Link>
       </nav>
 

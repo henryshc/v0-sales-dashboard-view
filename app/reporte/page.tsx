@@ -1,0 +1,486 @@
+'use client'
+
+import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import {
+  ArrowLeft, Printer, DollarSign, CreditCard, Package, Wifi, Zap,
+  Smartphone, Trophy, Target, Calendar
+} from 'lucide-react'
+
+const GOOGLE_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycbxufMWqOv5-cv_DUe4HThGywEMg1CwoJk7a0TH9zZwt44ViJaC3xOHYyd09BFNUQU7B/exec'
+
+const DEFAULT_WEIGHTS = { sales: 0.45, credits: 0.2, accessories: 0.2, chips: 0.15, epin: 0.0 }
+const METRIC_KEYS = ['sales', 'credits', 'accessories', 'chips', 'epin'] as const
+
+const getPercent = (a: number, t: number) => (t > 0 ? (a / t) * 100 : 0)
+
+const getEffectiveWeights = (s: any) => {
+  const configured = { ...DEFAULT_WEIGHTS, ...(s.weights || {}) }
+  const total = METRIC_KEYS.reduce((sum, k) => sum + (configured[k] || 0), 0)
+  const base: any = { sales: 0, credits: 0, accessories: 0, chips: 0, epin: 0 }
+  if (total > 0) {
+    METRIC_KEYS.forEach(k => { base[k] = (configured[k] || 0) / total })
+  } else {
+    METRIC_KEYS.forEach(k => { base[k] = 1 / METRIC_KEYS.length })
+  }
+  let dead = 0, alive = 0
+  METRIC_KEYS.forEach(k => {
+    const t = s.metrics?.[k]?.target ?? 0
+    if (t <= 0) { dead += base[k]; base[k] = 0 } else { alive += base[k] }
+  })
+  if (dead > 0 && alive > 0) {
+    const scale = (alive + dead) / alive
+    METRIC_KEYS.forEach(k => { if (base[k] > 0) base[k] *= scale })
+  }
+  return base
+}
+
+const calcScore = (s: any) => {
+  const w = getEffectiveWeights(s)
+  return (
+    getPercent(s.metrics?.sales?.achieved || 0, s.metrics?.sales?.target || 0) * (w.sales || 0) +
+    getPercent(s.metrics?.credits?.achieved || 0, s.metrics?.credits?.target || 0) * (w.credits || 0) +
+    getPercent(s.metrics?.accessories?.achieved || 0, s.metrics?.accessories?.target || 0) * (w.accessories || 0) +
+    getPercent(s.metrics?.chips?.achieved || 0, s.metrics?.chips?.target || 0) * (w.chips || 0) +
+    getPercent(s.metrics?.epin?.achieved || 0, s.metrics?.epin?.target || 0) * (w.epin || 0)
+  )
+}
+
+const scoreColor = (p: number) => (p >= 100 ? '#059669' : p >= 80 ? '#ea580c' : '#dc2626')
+
+const METRIC_DEFS = [
+  { key: 'sales', label: 'Ventas', icon: DollarSign, money: true },
+  { key: 'credits', label: 'Creditos', icon: CreditCard, money: false },
+  { key: 'accessories', label: 'Accesorios', icon: Package, money: false },
+  { key: 'chips', label: 'Chips', icon: Wifi, money: false },
+  { key: 'epin', label: 'EPIN', icon: Zap, money: true },
+] as const
+
+const fmtMoney = (v: number) => `L. ${v.toLocaleString('es-HN')}`
+const fmtNum = (v: number) => v.toLocaleString('es-HN')
+
+export default function ReportePage() {
+  const [history, setHistory] = useState<any>({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch(GOOGLE_SCRIPT_URL)
+        const data = await res.json()
+        if (data.history) {
+          setHistory(data.history)
+          const months = Object.keys(data.history).sort()
+          if (months.length > 0) setSelectedMonth(months[months.length - 1])
+        }
+      } catch (e) {
+        console.error('Error cargando datos:', e)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const months = useMemo(() => Object.keys(history).sort().reverse(), [history])
+  const currentData = history[selectedMonth]
+  const allSellers = currentData?.sellers || []
+  const sellers = useMemo(
+    () => allSellers
+      .filter((s: any) => (s.status || 'active') === 'active')
+      .map((s: any) => ({ ...s, score: calcScore(s) }))
+      .sort((a: any, b: any) => b.score - a.score),
+    [allSellers]
+  )
+
+  const commissions = currentData?.commissions || { tigo: 0, krediya: 0, ola: 0 }
+  const totalCommissions = (commissions.tigo || 0) + (commissions.krediya || 0) + (commissions.ola || 0)
+
+  const globalTotals = useMemo(() => {
+    const t: any = {
+      sales: { a: 0, t: 0 }, credits: { a: 0, t: 0 }, accessories: { a: 0, t: 0 },
+      chips: { a: 0, t: 0 }, epin: { a: 0, t: 0 }, phones: 0, score: 0,
+    }
+    sellers.forEach((s: any) => {
+      METRIC_KEYS.forEach(k => {
+        t[k].a += s.metrics?.[k]?.achieved || 0
+        t[k].t += s.metrics?.[k]?.target || 0
+      })
+      t.phones += s.celulares || 0
+      t.score += s.score
+    })
+    t.avgScore = sellers.length > 0 ? t.score / sellers.length : 0
+    return t
+  }, [sellers])
+
+  const dateTitle = selectedMonth
+    ? new Date(selectedMonth + '-02').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase()
+    : ''
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500 mx-auto mb-4" />
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Cargando reporte...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-200">
+      {/* Print styles */}
+      <style>{`
+        @page { size: letter portrait; margin: 0; }
+        @media print {
+          html, body { background: #fff !important; }
+          .no-print { display: none !important; }
+          .print-sheet {
+            box-shadow: none !important;
+            margin: 0 !important;
+            page-break-after: always;
+            break-after: page;
+          }
+          .print-sheet:last-child { page-break-after: auto; break-after: auto; }
+        }
+      `}</style>
+
+      {/* Toolbar - hidden on print */}
+      <div className="no-print sticky top-0 z-30 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+              <ArrowLeft className="w-5 h-5 text-slate-500" />
+            </Link>
+            <div className="h-5 w-px bg-slate-200" />
+            <div>
+              <h1 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                <Printer className="w-4 h-4 text-orange-500" /> Reporte para Impresion
+              </h1>
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+                Tamano carta · 1 hoja por vendedor + resumen
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-slate-600 outline-none focus:border-orange-500"
+            >
+              {months.map(m => (
+                <option key={m} value={m}>
+                  {new Date(m + '-02').toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }).toUpperCase()}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-5 py-2 rounded-lg font-black uppercase text-xs tracking-widest bg-orange-500 text-white hover:bg-orange-600 transition-all shadow"
+            >
+              <Printer className="w-4 h-4" /> Imprimir
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sheets */}
+      <div className="py-8 flex flex-col items-center gap-8">
+        {sellers.map((seller: any, idx: number) => (
+          <SellerSheet
+            key={seller.id}
+            seller={seller}
+            rank={idx + 1}
+            total={sellers.length}
+            monthTitle={dateTitle}
+          />
+        ))}
+
+        <GlobalSummarySheet
+          sellers={sellers}
+          totals={globalTotals}
+          commissions={commissions}
+          totalCommissions={totalCommissions}
+          monthTitle={dateTitle}
+        />
+      </div>
+    </div>
+  )
+}
+
+function SheetHeader({ title, subtitle, monthTitle }: { title: string; subtitle?: string; monthTitle: string }) {
+  return (
+    <div className="flex items-start justify-between border-b-2 border-slate-800 pb-4 mb-6">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="w-7 h-7 rounded bg-orange-500 flex items-center justify-center">
+            <span className="text-white font-black text-sm">D</span>
+          </div>
+          <span className="text-lg font-black text-slate-800 tracking-tight">DIGIMAX</span>
+        </div>
+        <h2 className="text-2xl font-black text-slate-900 leading-tight">{title}</h2>
+        {subtitle && <p className="text-sm font-semibold text-slate-500 mt-0.5">{subtitle}</p>}
+      </div>
+      <div className="text-right">
+        <div className="flex items-center gap-1.5 justify-end text-slate-500">
+          <Calendar className="w-4 h-4" />
+          <span className="text-sm font-bold uppercase tracking-wider">{monthTitle}</span>
+        </div>
+        <p className="text-[10px] font-medium text-slate-400 mt-1 uppercase tracking-widest">
+          Reporte de Metas y Resultados
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function SellerSheet({ seller, rank, total, monthTitle }: {
+  seller: any; rank: number; total: number; monthTitle: string
+}) {
+  const score = seller.score
+  const color = scoreColor(score)
+
+  return (
+    <div
+      className="print-sheet bg-white shadow-xl relative"
+      style={{ width: '8.5in', minHeight: '11in', padding: '0.6in' }}
+    >
+      <SheetHeader
+        title={seller.name}
+        subtitle={seller.sellerType === 'tigomoney' ? 'Asesor TigoMoney' : 'Asesor de Ventas'}
+        monthTitle={monthTitle}
+      />
+
+      {/* Score + ranking banner */}
+      <div className="flex items-stretch gap-4 mb-6">
+        <div
+          className="flex-1 rounded-xl p-5 flex flex-col items-center justify-center text-white"
+          style={{ backgroundColor: color }}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-widest opacity-90">Cumplimiento KPI</p>
+          <p className="text-5xl font-black leading-none mt-1">{score.toFixed(1)}%</p>
+        </div>
+        <div className="flex-1 rounded-xl border-2 border-slate-200 p-5 flex flex-col items-center justify-center">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Posicion en Ranking</p>
+          <p className="text-5xl font-black leading-none mt-1 text-slate-800">
+            {rank}<span className="text-2xl text-slate-400">/{total}</span>
+          </p>
+        </div>
+        <div className="flex-1 rounded-xl border-2 border-slate-200 p-5 flex flex-col items-center justify-center">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Celulares Vendidos</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Smartphone className="w-7 h-7 text-slate-600" />
+            <p className="text-5xl font-black leading-none text-slate-800">{seller.celulares || 0}</p>
+          </div>
+          {seller.celularesCredito ? (
+            <p className="text-[10px] font-semibold text-blue-500 mt-1">{seller.celularesCredito} a credito</p>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Metrics table */}
+      <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <Target className="w-4 h-4" /> Detalle de Metas y Resultados
+      </h3>
+      <table className="w-full border-collapse mb-6">
+        <thead>
+          <tr className="bg-slate-800 text-white text-[11px] uppercase tracking-wider">
+            <th className="text-left font-bold px-3 py-2.5">Indicador</th>
+            <th className="text-right font-bold px-3 py-2.5">Meta</th>
+            <th className="text-right font-bold px-3 py-2.5">Resultado</th>
+            <th className="text-right font-bold px-3 py-2.5">Cumplimiento</th>
+          </tr>
+        </thead>
+        <tbody>
+          {METRIC_DEFS.map(def => {
+            const m = seller.metrics?.[def.key] || { achieved: 0, target: 0 }
+            if (!m.target && !m.achieved) return null
+            const p = getPercent(m.achieved, m.target)
+            const fmt = def.money ? fmtMoney : fmtNum
+            const c = scoreColor(p)
+            return (
+              <tr key={def.key} className="border-b border-slate-200">
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-2">
+                    <def.icon className="w-4 h-4 text-slate-400" />
+                    <span className="font-bold text-slate-700 text-sm">{def.label}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-right font-semibold text-slate-500 text-sm">{fmt(m.target)}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-900 text-sm">{fmt(m.achieved)}</td>
+                <td className="px-3 py-3 text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-black text-sm" style={{ color: c }}>{p.toFixed(1)}%</span>
+                    <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: c }} />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      {/* Credit breakdown */}
+      {seller.creditBreakdown && (
+        <div className="mb-6">
+          <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Desglose de Creditos</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'OLA', val: seller.creditBreakdown.ola || 0 },
+              { label: 'KREDIYA', val: seller.creditBreakdown.krediya || 0 },
+              { label: 'OI', val: seller.creditBreakdown.oi || 0 },
+            ].map(c => (
+              <div key={c.label} className="border border-slate-200 rounded-lg p-3 text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{c.label}</p>
+                <p className="text-2xl font-black text-slate-800">{c.val}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Signature */}
+      <div className="absolute" style={{ bottom: '0.6in', left: '0.6in', right: '0.6in' }}>
+        <div className="flex justify-between gap-12 pt-4">
+          <div className="flex-1 border-t-2 border-slate-300 pt-2 text-center">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Firma del Asesor</p>
+          </div>
+          <div className="flex-1 border-t-2 border-slate-300 pt-2 text-center">
+            <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Firma de Gerencia</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GlobalSummarySheet({ sellers, totals, commissions, totalCommissions, monthTitle }: {
+  sellers: any[]; totals: any; commissions: any; totalCommissions: number; monthTitle: string
+}) {
+  return (
+    <div
+      className="print-sheet bg-white shadow-xl"
+      style={{ width: '8.5in', minHeight: '11in', padding: '0.6in' }}
+    >
+      <SheetHeader title="Resumen Global de Metas" subtitle="Consolidado del equipo (vendedores activos)" monthTitle={monthTitle} />
+
+      {/* Global KPI cards */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="rounded-xl p-4 text-white flex flex-col items-center justify-center" style={{ backgroundColor: scoreColor(totals.avgScore) }}>
+          <p className="text-[10px] font-bold uppercase tracking-widest opacity-90">Promedio KPI</p>
+          <p className="text-4xl font-black leading-none mt-1">{totals.avgScore.toFixed(1)}%</p>
+        </div>
+        <div className="rounded-xl border-2 border-slate-200 p-4 flex flex-col items-center justify-center">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vendedores Activos</p>
+          <p className="text-4xl font-black leading-none mt-1 text-slate-800">{sellers.length}</p>
+        </div>
+        <div className="rounded-xl border-2 border-slate-200 p-4 flex flex-col items-center justify-center">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Celulares Totales</p>
+          <p className="text-4xl font-black leading-none mt-1 text-slate-800">{totals.phones}</p>
+        </div>
+      </div>
+
+      {/* Global metrics table */}
+      <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <Target className="w-4 h-4" /> Metas del Equipo
+      </h3>
+      <table className="w-full border-collapse mb-6">
+        <thead>
+          <tr className="bg-slate-800 text-white text-[11px] uppercase tracking-wider">
+            <th className="text-left font-bold px-3 py-2.5">Indicador</th>
+            <th className="text-right font-bold px-3 py-2.5">Meta Total</th>
+            <th className="text-right font-bold px-3 py-2.5">Logrado</th>
+            <th className="text-right font-bold px-3 py-2.5">Cumplimiento</th>
+          </tr>
+        </thead>
+        <tbody>
+          {METRIC_DEFS.map(def => {
+            const data = totals[def.key]
+            if (!data || (!data.t && !data.a)) return null
+            const p = getPercent(data.a, data.t)
+            const fmt = def.money ? fmtMoney : fmtNum
+            const c = scoreColor(p)
+            return (
+              <tr key={def.key} className="border-b border-slate-200">
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-2">
+                    <def.icon className="w-4 h-4 text-slate-400" />
+                    <span className="font-bold text-slate-700 text-sm">{def.label}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-right font-semibold text-slate-500 text-sm">{fmt(data.t)}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-900 text-sm">{fmt(data.a)}</td>
+                <td className="px-3 py-3 text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-black text-sm" style={{ color: c }}>{p.toFixed(1)}%</span>
+                    <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: c }} />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      {/* Commissions */}
+      <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Comisiones</h3>
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="border border-slate-200 rounded-lg p-3 text-center">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TIGO</p>
+          <p className="text-lg font-black text-blue-600">{fmtMoney(commissions.tigo || 0)}</p>
+        </div>
+        <div className="border border-slate-200 rounded-lg p-3 text-center">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">KREDIYA</p>
+          <p className="text-lg font-black text-emerald-600">{fmtMoney(commissions.krediya || 0)}</p>
+        </div>
+        <div className="border border-slate-200 rounded-lg p-3 text-center">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">OLA</p>
+          <p className="text-lg font-black text-purple-600">{fmtMoney(commissions.ola || 0)}</p>
+        </div>
+        <div className="border-2 border-slate-800 rounded-lg p-3 text-center bg-slate-50">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">TOTAL</p>
+          <p className="text-lg font-black text-slate-900">{fmtMoney(totalCommissions)}</p>
+        </div>
+      </div>
+
+      {/* Ranking table */}
+      <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <Trophy className="w-4 h-4" /> Ranking del Equipo
+      </h3>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-100 text-slate-500 text-[11px] uppercase tracking-wider">
+            <th className="text-left font-bold px-3 py-2">#</th>
+            <th className="text-left font-bold px-3 py-2">Vendedor</th>
+            <th className="text-right font-bold px-3 py-2">Ventas</th>
+            <th className="text-right font-bold px-3 py-2">Celulares</th>
+            <th className="text-right font-bold px-3 py-2">KPI</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sellers.map((s, i) => (
+            <tr key={s.id} className="border-b border-slate-200">
+              <td className="px-3 py-2 font-black text-slate-400">{i + 1}</td>
+              <td className="px-3 py-2 font-bold text-slate-700 text-sm">
+                {s.name}
+                {s.sellerType === 'tigomoney' && <span className="ml-1 text-[9px] bg-purple-100 text-purple-600 px-1 rounded">TM</span>}
+              </td>
+              <td className="px-3 py-2 text-right font-semibold text-slate-600 text-sm">{fmtMoney(s.metrics?.sales?.achieved || 0)}</td>
+              <td className="px-3 py-2 text-right font-semibold text-slate-600 text-sm">{s.celulares || 0}</td>
+              <td className="px-3 py-2 text-right">
+                <span className="font-black text-sm" style={{ color: scoreColor(s.score) }}>{s.score.toFixed(1)}%</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
