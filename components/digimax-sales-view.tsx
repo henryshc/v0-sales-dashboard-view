@@ -646,6 +646,11 @@ const DigimaxSalesView = () => {
   const [history, setHistory] = useState<HistoryMap>({});
   const [newSellerName, setNewSellerName] = useState('');
   const [newSellerTargets] = useState<GlobalTargets>({ sales: 150000, credits: 20, accessories: 50, chips: 40, epin: 0 });
+
+  // Popup "Vendedor del Mes" (MVP)
+  const [mvpSeller, setMvpSeller] = useState<Seller | null>(null);
+  const [showMvp, setShowMvp] = useState(false);
+  const shownMvpRef = useRef<Set<string>>(new Set());
   
   // PIN Security
   const [showPinDialog, setShowPinDialog] = useState(false);
@@ -1164,6 +1169,21 @@ const handleDeleteSeller = (id: number) => {
   const bestEpin = useMemo(() => getBestPerformer(activeSellersList, 'epin'), [activeSellersList]);
   const bestOverall = useMemo(() => getBestOverall(activeSellersList), [activeSellersList]);
 
+  // Mostrar el popup "Vendedor del Mes" automaticamente al entrar al Panel de cada mes.
+  // Solo se muestra una vez por mes por sesion, y solo si hay un lider con datos.
+  useEffect(() => {
+    if (isLoading || currentView !== 'dashboard') return;
+    if (shownMvpRef.current.has(monthKey)) return;
+    const ranked = [...activeSellersList]
+      .map(s => ({ s, score: calculateScore(s) }))
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score);
+    if (ranked.length === 0) return;
+    shownMvpRef.current.add(monthKey);
+    setMvpSeller(ranked[0].s);
+    setShowMvp(true);
+  }, [isLoading, currentView, monthKey, activeSellersList]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white gap-8">
@@ -1180,6 +1200,61 @@ const handleDeleteSeller = (id: number) => {
 
   return (
     <div className="bg-slate-100 min-h-screen pb-32 font-sans text-slate-900">
+      {/* POPUP VENDEDOR DEL MES */}
+      <Dialog open={showMvp} onOpenChange={setShowMvp}>
+        <DialogContentAny className="sm:max-w-md p-0 overflow-hidden border-0 gap-0">
+          <DialogHeader className="sr-only"><DialogTitle>Vendedor del Mes</DialogTitle></DialogHeader>
+          {mvpSeller && (() => {
+            const mvpScore = calculateScore(mvpSeller);
+            const isTigo = mvpSeller.sellerType === 'tigomoney';
+            return (
+              <div className="relative bg-gradient-to-b from-amber-500 to-amber-600 text-white">
+                {/* Banda superior */}
+                <div className="flex flex-col items-center text-center px-6 pt-8 pb-7">
+                  <div className="flex items-center gap-1.5 text-amber-100 text-[11px] font-bold uppercase tracking-[0.25em] mb-4">
+                    <Star className="w-3.5 h-3.5 fill-amber-200 text-amber-200" />
+                    Vendedor del Mes
+                    <Star className="w-3.5 h-3.5 fill-amber-200 text-amber-200" />
+                  </div>
+                  <div className="relative mb-4">
+                    <div className="w-24 h-24 rounded-full bg-white/15 border-4 border-white/40 flex items-center justify-center backdrop-blur-sm">
+                      <span className="text-4xl font-black text-white">{mvpSeller.name.charAt(0)}</span>
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-lg">
+                      <Trophy className="w-5 h-5 text-amber-500" />
+                    </div>
+                  </div>
+                  <h3 className="text-2xl font-black tracking-tight text-balance">{mvpSeller.name}</h3>
+                  <p className="text-amber-100 text-xs font-semibold mt-1 capitalize">{dateTitle}</p>
+                </div>
+                {/* Tarjeta inferior */}
+                <div className="bg-white text-slate-900 px-6 py-5 rounded-t-2xl">
+                  <div className="flex items-center justify-center gap-6">
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Nota Final</p>
+                      <p className="text-3xl font-black text-amber-500">{mvpScore.toFixed(1)}<span className="text-lg">%</span></p>
+                    </div>
+                    <div className="h-12 w-px bg-slate-200" />
+                    <div className="text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Rol</p>
+                      <p className="text-sm font-black text-slate-700 mt-1">{isTigo ? 'TigoMoney' : 'Piso'}</p>
+                    </div>
+                  </div>
+                  <p className="text-center text-xs text-slate-500 mt-4 text-pretty">
+                    Lidera el ranking del equipo este mes. Felicitaciones por el excelente desempeno.
+                  </p>
+                  <button
+                    onClick={() => setShowMvp(false)}
+                    className="mt-5 w-full py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors"
+                  >
+                    Continuar
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContentAny>
+      </Dialog>
       {/* HEADER */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex justify-between items-center">
