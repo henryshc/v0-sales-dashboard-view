@@ -2141,6 +2141,9 @@ const MetricRow = ({ label, val, target, isMoney, onChange, onTargetChange, isEd
         <span className="text-slate-200">/</span>
         {isEditing ? <input className="w-12 border border-slate-100 rounded text-center bg-slate-50 text-slate-500 focus:border-indigo-500 outline-none text-[10px]" value={target} onChange={e => onTargetChange(e.target.value)} /> : <span className="text-slate-400 text-[10px]">{isMoney ? (Number(target) / 1000).toFixed(0) + 'k' : target}</span>}
       </div>
+      {!isEditing && (
+        <span className={`text-[11px] font-black w-12 text-right shrink-0 ${p >= 100 ? 'text-emerald-600' : p >= 70 ? 'text-indigo-600' : 'text-slate-400'}`}>{p.toFixed(0)}%</span>
+      )}
     </div>
   );
 };
