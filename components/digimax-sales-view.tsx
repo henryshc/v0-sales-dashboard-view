@@ -57,7 +57,7 @@ type Seller = {
   weights: WeightsMap;
   metrics: MetricsMap;
   leads?: LeadsMap;               // KPI de leads para vendedor transaccional
-  utility?: number;               // Utilidad generada por el vendedor (entrada manual, L.)
+  utility?: number;               // Utilidad generada por el vendedor (entrada manual, en %)
   creditBreakdown?: CreditBreakdown; // Desglose de creditos por financiera
   // Estado del vendedor
   status?: SellerStatus;
@@ -2065,17 +2065,20 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
         <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
           {isEditing ? (
             <div className="flex flex-col items-end">
-              <label className="text-[8px] font-bold uppercase text-emerald-600 tracking-wider mb-0.5">Utilidad L.</label>
-              <input
-                className="w-24 border border-emerald-200 rounded text-right px-1.5 py-0.5 text-emerald-700 font-bold text-xs bg-emerald-50/50 focus:border-emerald-500 outline-none"
-                value={seller.utility || 0}
-                onChange={e => onChange(seller.id, 'utility', e.target.value)}
-              />
+              <label className="text-[8px] font-bold uppercase text-emerald-600 tracking-wider mb-0.5">Utilidad %</label>
+              <div className="flex items-center gap-0.5">
+                <input
+                  className="w-16 border border-emerald-200 rounded text-right px-1.5 py-0.5 text-emerald-700 font-bold text-xs bg-emerald-50/50 focus:border-emerald-500 outline-none"
+                  value={seller.utility || 0}
+                  onChange={e => onChange(seller.id, 'utility', e.target.value)}
+                />
+                <span className="text-emerald-600 font-bold text-xs">%</span>
+              </div>
             </div>
           ) : (seller.utility || 0) > 0 ? (
             <div className="flex flex-col items-end">
               <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Utilidad</span>
-              <span className="text-sm font-black text-emerald-600">L.{Number(seller.utility).toLocaleString()}</span>
+              <span className="text-sm font-black text-emerald-600">{Number(seller.utility).toLocaleString()}%</span>
             </div>
           ) : null}
           <ChevronDown className={`text-slate-300 w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} onClick={() => setOpen(!open)} />
