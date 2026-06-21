@@ -57,6 +57,7 @@ type Seller = {
   weights: WeightsMap;
   metrics: MetricsMap;
   leads?: LeadsMap;               // KPI de leads para vendedor transaccional
+  utility?: number;               // Utilidad generada por el vendedor (entrada manual, L.)
   creditBreakdown?: CreditBreakdown; // Desglose de creditos por financiera
   // Estado del vendedor
   status?: SellerStatus;
@@ -698,6 +699,7 @@ const DigimaxSalesView = () => {
             name: sname,
             celulares: safeNumber(s.celulares, 0),
             celularesCredito: safeNumber(s.celularesCredito, 0),
+            utility: safeNumber(s.utility, 0),
             sellerType: isTigoMoney ? 'tigomoney' : 'piso',
             leads: isTigoMoney ? (s.leads ? {
               credito: { achieved: safeNumber(s.leads?.credito?.achieved), target: safeNumber(s.leads?.credito?.target) },
@@ -775,7 +777,7 @@ const currentMonthData: MonthData = useMemo(() => {
   // HANDLERS
   const changeMonth = (offset: number) => { const nd = new Date(currentDate); nd.setMonth(nd.getMonth() + offset); setCurrentDate(nd); setIsEditing(false); };
 
-  const handleSellerChange = (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi' | 'leadCredito' | 'leadHome' | 'leadPospago', value: string, isTarget = false) => {
+  const handleSellerChange = (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi' | 'leadCredito' | 'leadHome' | 'leadPospago' | 'utility', value: string, isTarget = false) => {
     const currentSellers = [...currentMonthData.sellers];
     const idx = currentSellers.findIndex(s => s.id === id);
     if (idx === -1) return;
@@ -785,6 +787,8 @@ const currentMonthData: MonthData = useMemo(() => {
       updated.celulares = parseInt(value) || 0; 
     } else if (metricKey === 'celularesCredito') {
       updated.celularesCredito = parseInt(value) || 0;
+    } else if (metricKey === 'utility') {
+      updated.utility = safeNumber(value, 0);
     } else if (leadField) {
       const base = updated.leads || { credito: { achieved: 0, target: 0 }, home: { achieved: 0, target: 0 }, pospago: { achieved: 0, target: 0 } };
       updated.leads = { ...base, [leadField]: { ...base[leadField], [isTarget ? 'target' : 'achieved']: parseInt(value) || 0 } };
@@ -1956,7 +1960,7 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
   const SellerCard = ({ seller, isEditing, onChange, onDelete, onOpenConfig, onStatusChange, onSellerTypeChange }: {
   seller: Seller; 
   isEditing: boolean; 
-  onChange: (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi' | 'leadCredito' | 'leadHome' | 'leadPospago', value: string, isTarget?: boolean) => void; 
+  onChange: (id: number, metricKey: MetricKey | 'celulares' | 'celularesCredito' | 'creditOla' | 'creditKrediya' | 'creditOi' | 'leadCredito' | 'leadHome' | 'leadPospago' | 'utility', value: string, isTarget?: boolean) => void; 
   onDelete: (id: number) => void; 
   onOpenConfig: () => void;
     onStatusChange?: (id: number, status: SellerStatus, reason?: ExitReason) => void;
@@ -2036,7 +2040,24 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
             </div>
           </div>
         </div>
-        <ChevronDown className={`text-slate-300 w-4 h-4 transition-transform duration-300 shrink-0 ${open ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+          {isEditing ? (
+            <div className="flex flex-col items-end">
+              <label className="text-[8px] font-bold uppercase text-emerald-600 tracking-wider mb-0.5">Utilidad L.</label>
+              <input
+                className="w-24 border border-emerald-200 rounded text-right px-1.5 py-0.5 text-emerald-700 font-bold text-xs bg-emerald-50/50 focus:border-emerald-500 outline-none"
+                value={seller.utility || 0}
+                onChange={e => onChange(seller.id, 'utility', e.target.value)}
+              />
+            </div>
+          ) : (seller.utility || 0) > 0 ? (
+            <div className="flex flex-col items-end">
+              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Utilidad</span>
+              <span className="text-sm font-black text-emerald-600">L.{Number(seller.utility).toLocaleString()}</span>
+            </div>
+          ) : null}
+          <ChevronDown className={`text-slate-300 w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} onClick={() => setOpen(!open)} />
+        </div>
       </div>
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t border-slate-100 pt-3 animate-in slide-in-from-top-2">
