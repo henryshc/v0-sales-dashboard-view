@@ -93,7 +93,7 @@ export default function ReportePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(GOOGLE_SCRIPT_URL)
+        const res = await fetch('/api/data', { cache: 'no-store' })
         const data = await res.json()
         if (data.history) {
           setHistory(data.history)

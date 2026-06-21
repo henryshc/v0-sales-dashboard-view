@@ -282,7 +282,8 @@ const LocalBackup = {
 const DataService = {
   async loadData(): Promise<CloudPayload> {
     try {
-      const response = await fetch(GOOGLE_SCRIPT_URL);
+      // Usar el proxy server-side para evitar bloqueos de CORS en produccion
+      const response = await fetch('/api/data', { cache: 'no-store' });
       const cloudData = (await response.json()) as CloudPayload;
       
       // Si cloud falla o esta vacio, intentar localStorage
@@ -328,8 +329,9 @@ const DataService = {
     LocalBackup.save(history);
     
     try {
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST', mode: 'no-cors',
+      // Guardar via proxy server-side (evita CORS y permite leer la respuesta)
+      await fetch('/api/data', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ history, globalTargets: null, version: DATA_VERSION })
       });
