@@ -293,6 +293,24 @@ const DataService = {
           return { history: localData.history, version: localData.version, globalTargets: null };
         }
       }
+
+      // RECUPERACION: fusionar meses que existen en el respaldo local pero NO en la nube.
+      // Esto restaura datos que un reseteo de version pudo haber borrado de la nube.
+      const localBackup = LocalBackup.load();
+      if (localBackup?.history && cloudData.history) {
+        let recovered = 0;
+        Object.keys(localBackup.history).forEach(monthKey => {
+          const localMonth = localBackup.history[monthKey];
+          const cloudMonth = cloudData.history[monthKey];
+          const localHasData = (localMonth?.sellers || []).some(s => Object.values(s.metrics || {}).some(m => (m?.achieved || 0) > 0));
+          const cloudMissing = !cloudMonth || (cloudMonth.sellers || []).every(s => Object.values(s.metrics || {}).every(m => (m?.achieved || 0) === 0));
+          if (localHasData && cloudMissing) {
+            cloudData.history[monthKey] = localMonth;
+            recovered++;
+          }
+        });
+        if (recovered > 0) console.log(`[v0] Recuperados ${recovered} mes(es) desde respaldo local`);
+      }
       
       return cloudData;
     } catch {
@@ -676,16 +694,12 @@ const DigimaxSalesView = () => {
     const initData = async () => {
       setIsLoading(true);
       const cloudData = await DataService.loadData();
-      if (cloudData.version !== DATA_VERSION) {
-        setSyncStatus('updating');
-        const newHistory: HistoryMap = {
-          '2026-01': { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null },
-          '2026-02': { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null },
-        };
-        setHistory(newHistory);
-        await DataService.saveData(newHistory);
-        setSyncStatus('synced');
-      } else {
+      {
+        // MIGRACION NO DESTRUCTIVA: nunca se borra el historial existente.
+        // Se sanean los datos de la nube y, si la version cambio, solo se
+        // siembran meses base que falten y se actualiza la version.
+        const versionChanged = cloudData.version !== DATA_VERSION;
+        if (versionChanged) setSyncStatus('updating');
         const rawHistory = cloudData.history || {};
         const patchedHistory: HistoryMap = {};
         Object.keys(rawHistory).forEach(key => {
@@ -739,7 +753,15 @@ const DigimaxSalesView = () => {
             changeLog: Array.isArray(monthObj?.changeLog) ? monthObj.changeLog : [],
           };
         });
+        // Sembrar meses base SOLO si faltan (nunca sobrescribe datos del usuario)
+        if (!patchedHistory['2026-01']) patchedHistory['2026-01'] = { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+        if (!patchedHistory['2026-02']) patchedHistory['2026-02'] = { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
         setHistory(patchedHistory);
+        // Si cambio la version, persistir el historial COMPLETO (no solo base) para actualizar la version sin perder datos
+        if (versionChanged) {
+          await DataService.saveData(patchedHistory);
+          setSyncStatus('synced');
+        }
       }
       setIsLoading(false);
       hydratedRef.current = true;
