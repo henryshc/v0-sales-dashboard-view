@@ -96,7 +96,7 @@ type MonthData = {
 };
 
 type HistoryMap = Record<string, MonthData>;
-type CloudPayload = { history?: HistoryMap; globalTargets?: Partial<GlobalTargets> | null; version?: string | null };
+type CloudPayload = { history?: HistoryMap; globalTargets?: Partial<GlobalTargets> | null; version?: string | null; _recovered?: boolean };
 
 // ============================================================================
 // 2. CONSTANTES
@@ -295,8 +295,10 @@ const DataService = {
         }
       }
 
-      // RECUPERACION: fusionar meses que existen en el respaldo local pero NO en la nube.
-      // Esto restaura datos que un reseteo de version pudo haber borrado de la nube.
+      // RECUPERACION: por cada mes, preferir la version mas reciente entre la nube
+      // y el respaldo local, comparando su fecha de modificacion (lastModifiedAt).
+      // Esto restaura datos borrados por un reseteo Y datos locales mas nuevos que
+      // fueron sobrescritos en la nube por una version mas antigua desde otro lado.
       const localBackup = LocalBackup.load();
       if (localBackup?.history && cloudData.history) {
         let recovered = 0;
@@ -304,13 +306,26 @@ const DataService = {
           const localMonth = localBackup.history[monthKey];
           const cloudMonth = cloudData.history[monthKey];
           const localHasData = (localMonth?.sellers || []).some(s => Object.values(s.metrics || {}).some(m => (m?.achieved || 0) > 0));
-          const cloudMissing = !cloudMonth || (cloudMonth.sellers || []).every(s => Object.values(s.metrics || {}).every(m => (m?.achieved || 0) === 0));
-          if (localHasData && cloudMissing) {
+          if (!localHasData) return;
+          const cloudHasData = !!cloudMonth && (cloudMonth.sellers || []).some(s => Object.values(s.metrics || {}).some(m => (m?.achieved || 0) > 0));
+          // Caso 1: la nube no tiene datos para este mes -> recuperar del local
+          if (!cloudHasData) {
+            cloudData.history[monthKey] = localMonth;
+            recovered++;
+            return;
+          }
+          // Caso 2: ambos tienen datos -> usar el mas reciente por lastModifiedAt
+          const localTime = new Date(localMonth?.lastModifiedAt || 0).getTime();
+          const cloudTime = new Date(cloudMonth?.lastModifiedAt || 0).getTime();
+          if (localTime > cloudTime) {
             cloudData.history[monthKey] = localMonth;
             recovered++;
           }
         });
-        if (recovered > 0) console.log(`[v0] Recuperados ${recovered} mes(es) desde respaldo local`);
+        if (recovered > 0) {
+          console.log(`[v0] Recuperados/actualizados ${recovered} mes(es) desde respaldo local`);
+          cloudData._recovered = true;
+        }
       }
       
       return cloudData;
@@ -759,8 +774,11 @@ const DigimaxSalesView = () => {
         if (!patchedHistory['2026-01']) patchedHistory['2026-01'] = { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
         if (!patchedHistory['2026-02']) patchedHistory['2026-02'] = { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
         setHistory(patchedHistory);
-        // Si cambio la version, persistir el historial COMPLETO (no solo base) para actualizar la version sin perder datos
-        if (versionChanged) {
+        // Persistir el historial COMPLETO a la nube si:
+        //  - cambio la version (migracion), o
+        //  - se recuperaron datos locales mas recientes que la nube.
+        if (versionChanged || cloudData._recovered) {
+          setSyncStatus('updating');
           await DataService.saveData(patchedHistory);
           setSyncStatus('synced');
         }
