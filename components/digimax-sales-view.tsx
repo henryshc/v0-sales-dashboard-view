@@ -1142,7 +1142,8 @@ const handleDeleteSeller = (id: number) => {
       epin += s.metrics.epin?.achieved || 0; phones += s.celulares || 0;
     });
     const comms = (currentMonthData.commissions?.tigo || 0) + (currentMonthData.commissions?.krediya || 0) + (currentMonthData.commissions?.ola || 0);
-    return { sales: { achieved: salesSellers + comms + epin, target: globalTargets.sales }, credits: { achieved: credits, target: globalTargets.credits }, acc: { achieved: acc, target: globalTargets.accessories }, chips: { achieved: chips, target: globalTargets.chips }, epin: { achieved: epin, target: globalTargets.epin }, phones, comms };
+    // Venta total = ventas de productos/equipos (+ comisiones). EPIN NO se incluye; es un KPI independiente.
+    return { sales: { achieved: salesSellers + comms, target: globalTargets.sales }, credits: { achieved: credits, target: globalTargets.credits }, acc: { achieved: acc, target: globalTargets.accessories }, chips: { achieved: chips, target: globalTargets.chips }, epin: { achieved: epin, target: globalTargets.epin }, phones, comms };
   }, [currentMonthData, globalTargets]);
 
   // PACE METRICS
@@ -1676,7 +1677,7 @@ const handleDeleteSeller = (id: number) => {
             {/* SELLER CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...currentMonthData.sellers]
-                .sort((a, b) => ((b.metrics.sales.achieved || 0) + (b.metrics.epin?.achieved || 0)) - ((a.metrics.sales.achieved || 0) + (a.metrics.epin?.achieved || 0)))
+                .sort((a, b) => (b.metrics.sales.achieved || 0) - (a.metrics.sales.achieved || 0))
                 .map(seller => (
                   <SellerCard key={seller.id} seller={seller} isEditing={isEditing} onChange={handleSellerChange} onDelete={handleDeleteSeller} onOpenConfig={() => setSellerConfig(seller)} onStatusChange={handleStatusChange} onSellerTypeChange={handleSellerTypeChange} />
                 ))}
@@ -2011,7 +2012,8 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
   const score = calculateScore(seller);
   const [open, setOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
-  const totalSales = (seller.metrics.sales.achieved || 0) + (seller.metrics.epin?.achieved || 0);
+  // Ventas del vendedor = solo productos/equipos. EPIN es un KPI independiente (no se suma aqui).
+  const totalSales = (seller.metrics.sales.achieved || 0);
   const isActive = isSellerActive(seller);
   const statusInfo = getSellerStatusLabel(seller);
   
@@ -2625,7 +2627,7 @@ const ComparativeView = ({ sellers, monthName }: { sellers: Seller[]; monthName:
           </div>
           <div className="space-y-4">
             {sorted.map((s, i) => {
-              const totalSales = (s.metrics.sales.achieved || 0) + (s.metrics.epin?.achieved || 0);
+              const totalSales = (s.metrics.sales.achieved || 0);
               const barW = maxScore > 0 ? (s.score / maxScore) * 100 : 0;
               return (
                 <div key={s.id} className="flex items-center gap-4">
