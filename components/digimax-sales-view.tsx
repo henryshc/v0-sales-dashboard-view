@@ -2012,8 +2012,8 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
   const score = calculateScore(seller);
   const [open, setOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
-  // Ventas del vendedor = solo productos/equipos. EPIN es un KPI independiente (no se suma aqui).
-  const totalSales = (seller.metrics.sales.achieved || 0);
+  // Venta total del vendedor (solo en su tarjeta) = productos/equipos + EPIN.
+  const totalSales = (seller.metrics.sales.achieved || 0) + (seller.metrics.epin?.achieved || 0);
   const isActive = isSellerActive(seller);
   const statusInfo = getSellerStatusLabel(seller);
   
