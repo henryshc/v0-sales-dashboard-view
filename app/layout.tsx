@@ -1,16 +1,10 @@
 import './globals.css'
-import { DM_Sans, Inter } from 'next/font/google'
 
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  variable: '--font-heading',
-  weight: ['400', '500', '600', '700'],
-})
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-body',
-})
+// Use local system fallbacks so preview builds do not depend on next/font/google network resolution.
+const fontVariables = {
+  '--font-heading': "'DM Sans', ui-sans-serif, system-ui, sans-serif",
+  '--font-body': "Inter, ui-sans-serif, system-ui, sans-serif",
+} as React.CSSProperties
 
 export const metadata = {
   title: 'Digimax Sales v2.0',
@@ -25,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={`${dmSans.variable} ${inter.variable} font-sans antialiased`}>
+      <body style={fontVariables} className="font-sans antialiased">
         {children}
       </body>
     </html>
