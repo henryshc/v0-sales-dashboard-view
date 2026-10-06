@@ -1368,7 +1368,7 @@ const handleDeleteSeller = (id: number) => {
               <DialogTrigger asChild>
                 <button className="p-2 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 hover:text-slate-700 transition-colors"><Target className="w-4 h-4" /></button>
               </DialogTrigger>
-              <DialogContentAny className="sm:max-w-md">
+<DialogContentAny className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader><DialogTitle className="font-heading text-base">Metas de Tienda - {dateTitle}</DialogTitle></DialogHeader>
                 <div className="grid grid-cols-2 gap-3 py-4">
                   {(Object.keys(globalTargets) as MetricKey[]).map(k => (

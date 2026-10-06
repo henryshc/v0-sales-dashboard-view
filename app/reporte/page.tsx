@@ -89,6 +89,7 @@ export default function ReportePage() {
   const [history, setHistory] = useState<any>({})
   const [isLoading, setIsLoading] = useState(true)
   const [selectedMonth, setSelectedMonth] = useState<string>('')
+  const [cloudGlobalTargets, setCloudGlobalTargets] = useState<any>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -97,6 +98,7 @@ export default function ReportePage() {
         const data = await res.json()
         if (data.history) {
           setHistory(data.history)
+          setCloudGlobalTargets(data.globalTargets || null)
           const months = Object.keys(data.history).sort()
           if (months.length > 0) setSelectedMonth(months[months.length - 1])
         }
@@ -137,7 +139,7 @@ export default function ReportePage() {
     })
     // Las metas colectivas deben venir de la configuración del mes, igual que el dashboard.
     // Sumar metas individuales produce cifras distintas cuando hay ajustes mensuales.
-    const monthTargets = currentData?.globalTargets || {}
+    const monthTargets = currentData?.globalTargets || cloudGlobalTargets || {}
     METRIC_KEYS.forEach(k => {
       t[k].t = Number(monthTargets[k] ?? 0)
       if (!t[k].t) {
