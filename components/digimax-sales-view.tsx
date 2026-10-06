@@ -867,23 +867,9 @@ const currentMonthData: MonthData = useMemo(() => {
   };
 
   const handleSellerLeadTargetUpdate = (sellerId: number, lead: 'home' | 'pospago', target: number) => {
-    setHistory(prev => {
-      const prevMonth = prev[monthKey] || currentMonthData;
-      const sellers = [...prevMonth.sellers];
-      const idx = sellers.findIndex(s => s.id === sellerId);
-      if (idx === -1) return prev;
-      const current = sellers[idx];
-      sellers[idx] = {
-        ...current,
-        leads: {
-          ...(current.leads || EMPTY_LEADS),
-          [lead]: { ...(current.leads?.[lead] || { achieved: 0, target: 0 }), target: Math.max(0, target) },
-        },
-      };
-      setSellerConfig(sellers[idx]);
-      if (hydratedRef.current) markModified(monthKey);
-      return { ...prev, [monthKey]: { ...prevMonth, sellers } };
-    });
+    // Usar el mismo handler principal garantiza que el cambio entre al historial
+    // y al autosave, igual que las demás metas de la tarjeta.
+    handleSellerChange(sellerId, lead === 'home' ? 'leadHome' : 'leadPospago', String(Math.max(0, target)), true);
   };
 
   const handleSellerWeightUpdate = (sellerId: number, metric: MetricKey, val: number) => {
