@@ -159,8 +159,13 @@ export default function ReportePage() {
     <div className="min-h-screen bg-slate-200">
       {/* Print styles */}
       <style>{`
-        @page { size: letter portrait; margin: 0; }
+        @page { size: A4 portrait; margin: 0; }
         @media print {
+          @page { size: A4 portrait; margin: 0; }
+          .print-sheet { break-inside: avoid; page-break-inside: avoid; }
+          .report-section { break-inside: avoid; page-break-inside: avoid; }
+          table, tr, .metric-card, .insight-card { break-inside: avoid; page-break-inside: avoid; }
+
           html, body { background: #fff !important; }
           .no-print { display: none !important; }
           .print-sheet {
@@ -214,6 +219,8 @@ export default function ReportePage() {
 
       {/* Sheets */}
       <div className="py-8 flex flex-col items-center gap-8">
+        <ExecutiveSummarySheet sellers={sellers} totals={globalTotals} monthTitle={dateTitle} />
+        <TeamAnalysisSheet sellers={sellers} monthTitle={dateTitle} />
         {sellers.map((seller: any, idx: number) => (
           <SellerSheet
             key={seller.id}
@@ -234,6 +241,42 @@ export default function ReportePage() {
       </div>
     </div>
   )
+}
+
+function ReportFooter() {
+  return <div className="mt-auto pt-5 border-t border-slate-200 flex justify-between text-[9px] font-semibold uppercase tracking-wider text-slate-400"><span>DIGIMAX | Reporte Comercial</span><span>Página</span></div>
+}
+
+function ExecutiveSummarySheet({ sellers, totals, monthTitle }: { sellers: any[]; totals: any; monthTitle: string }) {
+  const rows = METRIC_DEFS.map(def => ({ ...def, data: totals[def.key], pct: getPercent(totals[def.key]?.a || 0, totals[def.key]?.t || 0) })).filter(x => x.data?.t || x.data?.a).sort((a, b) => b.pct - a.pct)
+  const totalCredits = totals.credits?.a || 0
+  const eligible = sellers.reduce((sum, s) => sum + (s.celularesCredito || 0), 0)
+  const fmt = (def: any, v: number) => def.money ? fmtMoney(v) : fmtNum(v)
+  return <div className="print-sheet bg-white shadow-xl flex flex-col" style={{ width: '8.27in', minHeight: '11.69in', padding: '0.62in' }}>
+    <SheetHeader title="REPORTE COMERCIAL" subtitle="Resultados, desviaciones y prioridades comerciales" monthTitle={monthTitle} />
+    <div className="mb-6"><p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-600 mb-1">Resumen ejecutivo</p><p className="text-3xl font-black text-slate-900">Cómo cerró el equipo</p></div>
+    <div className="grid grid-cols-5 gap-2 mb-7">
+      {[
+        ['Cumplimiento promedio', `${totals.avgScore.toFixed(1)}%`], ['Vendedores activos', sellers.length], ['Celulares vendidos', totals.phones], ['Ventas totales', fmtMoney(totals.sales?.a || 0)], ['Créditos realizados', totalCredits]
+      ].map(([label, value]) => <div key={String(label)} className="metric-card border border-slate-200 p-3"><p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="text-lg font-black text-slate-900 mt-2">{value}</p></div>)}
+    </div>
+    <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Indicadores colectivos</h3>
+    <table className="w-full border-collapse mb-7"><thead><tr className="bg-slate-900 text-white text-[10px] uppercase"><th className="text-left px-3 py-2">Indicador</th><th className="text-right px-3 py-2">Meta</th><th className="text-right px-3 py-2">Resultado</th><th className="text-right px-3 py-2">Cumplimiento</th><th className="text-right px-3 py-2">Brecha</th></tr></thead><tbody>{rows.map(r => <tr key={r.key} className="border-b border-slate-200 text-sm"><td className="px-3 py-3 font-bold text-slate-700">{r.label}</td><td className="px-3 py-3 text-right text-slate-500">{fmt(r, r.data.t)}</td><td className="px-3 py-3 text-right font-black">{fmt(r, r.data.a)}</td><td className="px-3 py-3 text-right font-black" style={{ color: scoreColor(r.pct) }}>{r.pct.toFixed(1)}%</td><td className="px-3 py-3 text-right font-bold text-red-600">-{fmt(r, Math.max(0, r.data.t - r.data.a))}</td></tr>)}</tbody></table>
+    <div className="grid grid-cols-4 gap-3 mb-6">{[['FORTALEZA', rows[0] ? `${rows[0].label} lidera con ${rows[0].pct.toFixed(1)}%.` : 'Sin datos'], ['PRINCIPAL BRECHA', rows.at(-1) ? `${rows.at(-1).label} concentra la mayor desviación.` : 'Sin datos'], ['CRÉDITOS', `${totalCredits} créditos realizados.`], ['UNIDADES', `${totals.phones} celulares vendidos.`]].map(([title, text]) => <div key={title} className="insight-card bg-slate-50 border-l-4 border-orange-500 p-3"><p className="text-[9px] font-black tracking-widest text-orange-600">{title}</p><p className="text-xs font-semibold leading-relaxed text-slate-600 mt-2">{text}</p></div>)}</div>
+    <div className="mt-auto"><p className="text-xs text-slate-500">Penetración de crédito: <strong>{eligible ? ((totalCredits / eligible) * 100).toFixed(1) : '0.0'}%</strong> sobre celulares elegibles.</p><ReportFooter /></div>
+  </div>
+}
+
+function TeamAnalysisSheet({ sellers, monthTitle }: { sellers: any[]; monthTitle: string }) {
+  const cells = (s: any) => METRIC_KEYS.map(k => getPercent(s.metrics?.[k]?.achieved || 0, s.metrics?.[k]?.target || 0))
+  return <div className="print-sheet bg-white shadow-xl" style={{ width: '8.27in', minHeight: '11.69in', padding: '0.62in' }}>
+    <SheetHeader title="Desempeño comparativo del equipo" subtitle="Ranking, brechas y señales de intervención" monthTitle={monthTitle} />
+    <table className="w-full border-collapse mb-7"><thead><tr className="bg-slate-900 text-white text-[10px] uppercase"><th className="text-left px-3 py-2"># Vendedor</th><th className="text-right px-3 py-2">Ventas</th><th className="text-right px-3 py-2">Celulares</th><th className="text-right px-3 py-2">Créditos</th><th className="text-right px-3 py-2">KPI</th></tr></thead><tbody>{sellers.map((s, i) => <tr key={s.id} className="border-b border-slate-200"><td className="px-3 py-3 font-bold text-slate-700">{i + 1}. {s.name}</td><td className="px-3 py-3 text-right font-semibold">{fmtMoney(s.metrics?.sales?.achieved || 0)}</td><td className="px-3 py-3 text-right">{s.celulares || 0}</td><td className="px-3 py-3 text-right">{s.metrics?.credits?.achieved || 0}</td><td className="px-3 py-3 text-right font-black" style={{ color: scoreColor(s.score) }}>{s.score.toFixed(1)}%</td></tr>)}</tbody></table>
+    <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Heatmap de cumplimiento</h3>
+    <table className="w-full border-collapse mb-7"><thead><tr className="bg-slate-100 text-[9px] uppercase text-slate-500"><th className="text-left px-2 py-2">Vendedor</th>{METRIC_DEFS.map(d => <th key={d.key} className="text-right px-2 py-2">{d.label}</th>)}<th className="text-right px-2 py-2">KPI</th></tr></thead><tbody>{sellers.map(s => <tr key={s.id} className="border-b border-slate-200"><td className="px-2 py-2 text-xs font-bold">{s.name}</td>{cells(s).map((p, i) => <td key={i} className="px-2 py-2 text-right text-[11px] font-black" style={{ background: `${scoreColor(p)}18`, color: scoreColor(p) }}>{p.toFixed(1)}%</td>)}<td className="px-2 py-2 text-right text-[11px] font-black" style={{ color: scoreColor(s.score) }}>{s.score.toFixed(1)}%</td></tr>)}</tbody></table>
+    <div className="grid grid-cols-3 gap-3"><div className="metric-card border border-slate-200 p-4"><p className="text-[9px] uppercase font-bold text-slate-400">Venta promedio / celular</p><p className="text-xl font-black mt-2">{fmtMoney((sellers.reduce((a, s) => a + (s.metrics?.sales?.achieved || 0), 0) / Math.max(1, sellers.reduce((a, s) => a + (s.celulares || 0), 0))))}</p></div><div className="metric-card border border-slate-200 p-4"><p className="text-[9px] uppercase font-bold text-slate-400">Accesorios / celular</p><p className="text-xl font-black mt-2">{(sellers.reduce((a, s) => a + (s.metrics?.accessories?.achieved || 0), 0) / Math.max(1, sellers.reduce((a, s) => a + (s.celulares || 0), 0))).toFixed(2)}</p></div><div className="metric-card border border-slate-200 p-4"><p className="text-[9px] uppercase font-bold text-slate-400">Metodología KPI</p><p className="text-xs text-slate-500 mt-2 leading-relaxed">La ponderación deberá definirse según la metodología oficial de DIGIMAX.</p></div></div>
+    <ReportFooter />
+  </div>
 }
 
 function SheetHeader({ title, subtitle, monthTitle }: { title: string; subtitle?: string; monthTitle: string }) {
