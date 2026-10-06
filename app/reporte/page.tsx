@@ -401,6 +401,28 @@ function SellerSheet({ seller, rank, total, monthTitle }: {
               </tr>
             )
           })}
+          {(['home', 'pospago'] as const).map(key => {
+            const lead = seller.leads?.[key] || { achieved: 0, target: 0 }
+            const p = getPercent(lead.achieved, lead.target)
+            const c = scoreColor(p)
+            return (
+              <tr key={key} className="border-b border-slate-200">
+                <td className="px-3 py-3">
+                  <span className="font-bold text-slate-700 text-sm">{key === 'home' ? 'Home' : 'Pospago'}</span>
+                </td>
+                <td className="px-3 py-3 text-right font-semibold text-slate-500 text-sm">{fmtNum(lead.target)}</td>
+                <td className="px-3 py-3 text-right font-black text-slate-900 text-sm">{fmtNum(lead.achieved)}</td>
+                <td className="px-3 py-3 text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="font-black text-sm" style={{ color: c }}>{p.toFixed(1)}%</span>
+                    <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: c }} />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
 
