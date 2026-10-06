@@ -131,14 +131,22 @@ export default function ReportePage() {
     sellers.forEach((s: any) => {
       METRIC_KEYS.forEach(k => {
         t[k].a += s.metrics?.[k]?.achieved || 0
-        t[k].t += s.metrics?.[k]?.target || 0
       })
       t.phones += s.celulares || 0
       t.score += s.score
     })
+    // Las metas colectivas deben venir de la configuración del mes, igual que el dashboard.
+    // Sumar metas individuales produce cifras distintas cuando hay ajustes mensuales.
+    const monthTargets = currentData?.globalTargets || {}
+    METRIC_KEYS.forEach(k => {
+      t[k].t = Number(monthTargets[k] ?? 0)
+      if (!t[k].t) {
+        t[k].t = sellers.reduce((sum: number, s: any) => sum + (s.metrics?.[k]?.target || 0), 0)
+      }
+    })
     t.avgScore = sellers.length > 0 ? t.score / sellers.length : 0
     return t
-  }, [sellers])
+  }, [sellers, currentData])
 
   const dateTitle = selectedMonth
     ? new Date(selectedMonth + '-02').toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).toUpperCase()
@@ -252,6 +260,7 @@ function ExecutiveSummarySheet({ sellers, totals, monthTitle }: { sellers: any[]
   const totalCredits = totals.credits?.a || 0
   const eligible = sellers.reduce((sum, s) => sum + (s.celularesCredito || 0), 0)
   const fmt = (def: any, v: number) => def.money ? fmtMoney(v) : fmtNum(v)
+  const weakest = rows[rows.length - 1]
   return <div className="print-sheet bg-white shadow-xl flex flex-col" style={{ width: '8.5in', minHeight: '11in', padding: '0.62in' }}>
     <SheetHeader title="REPORTE COMERCIAL" subtitle="Resultados, desviaciones y prioridades comerciales" monthTitle={monthTitle} />
     <div className="mb-6"><p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-600 mb-1">Resumen ejecutivo</p><p className="text-3xl font-black text-slate-900">Cómo cerró el equipo</p></div>
@@ -262,7 +271,7 @@ function ExecutiveSummarySheet({ sellers, totals, monthTitle }: { sellers: any[]
     </div>
     <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Indicadores colectivos</h3>
     <table className="w-full border-collapse mb-7"><thead><tr className="bg-slate-900 text-white text-[10px] uppercase"><th className="text-left px-3 py-2">Indicador</th><th className="text-right px-3 py-2">Meta</th><th className="text-right px-3 py-2">Resultado</th><th className="text-right px-3 py-2">Cumplimiento</th><th className="text-right px-3 py-2">Brecha</th></tr></thead><tbody>{rows.map(r => <tr key={r.key} className="border-b border-slate-200 text-sm"><td className="px-3 py-3 font-bold text-slate-700">{r.label}</td><td className="px-3 py-3 text-right text-slate-500">{fmt(r, r.data.t)}</td><td className="px-3 py-3 text-right font-black">{fmt(r, r.data.a)}</td><td className="px-3 py-3 text-right font-black" style={{ color: scoreColor(r.pct) }}>{r.pct.toFixed(1)}%</td><td className="px-3 py-3 text-right font-bold text-red-600">-{fmt(r, Math.max(0, r.data.t - r.data.a))}</td></tr>)}</tbody></table>
-    <div className="grid grid-cols-4 gap-3 mb-6">{[['FORTALEZA', rows[0] ? `${rows[0].label} lidera con ${rows[0].pct.toFixed(1)}%.` : 'Sin datos'], ['PRINCIPAL BRECHA', rows.at(-1) ? `${rows.at(-1).label} concentra la mayor desviación.` : 'Sin datos'], ['CRÉDITOS', `${totalCredits} créditos realizados.`], ['UNIDADES', `${totals.phones} celulares vendidos.`]].map(([title, text]) => <div key={title} className="insight-card bg-slate-50 border-l-4 border-orange-500 p-3"><p className="text-[9px] font-black tracking-widest text-orange-600">{title}</p><p className="text-xs font-semibold leading-relaxed text-slate-600 mt-2">{text}</p></div>)}</div>
+    <div className="grid grid-cols-4 gap-3 mb-6">{[['FORTALEZA', rows[0] ? `${rows[0].label} lidera con ${rows[0].pct.toFixed(1)}%.` : 'Sin datos'], ['PRINCIPAL BRECHA', weakest ? `${weakest.label} concentra la mayor desviación.` : 'Sin datos'], ['CRÉDITOS', `${totalCredits} créditos realizados.`], ['UNIDADES', `${totals.phones} celulares vendidos.`]].map(([title, text]) => <div key={title} className="insight-card bg-slate-50 border-l-4 border-orange-500 p-3"><p className="text-[9px] font-black tracking-widest text-orange-600">{title}</p><p className="text-xs font-semibold leading-relaxed text-slate-600 mt-2">{text}</p></div>)}</div>
     <div className="mt-auto"><p className="text-xs text-slate-500">Penetración de crédito: <strong>{eligible ? ((totalCredits / eligible) * 100).toFixed(1) : '0.0'}%</strong> sobre celulares elegibles.</p><ReportFooter /></div>
   </div>
 }
@@ -344,7 +353,7 @@ function SellerSheet({ seller, rank, total, monthTitle }: {
             <p className="text-5xl font-black leading-none text-slate-800">{seller.celulares || 0}</p>
           </div>
           {seller.celularesCredito ? (
-            <p className="text-[10px] font-semibold text-blue-500 mt-1">{seller.celularesCredito} a credito</p>
+            <p className="text-[10px] font-semibold text-blue-500 mt-1">{seller.celularesCredito} elegibles a credito</p>
           ) : null}
         </div>
       </div>

@@ -2167,7 +2167,7 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
                 {isEditing ? <input className="w-14 border rounded text-center text-slate-800 font-black" value={seller.celulares} onChange={e => onChange(seller.id, 'celulares', e.target.value)} /> : <span className="text-slate-800 font-black">{seller.celulares}</span>}
               </div>
               <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
-                <span className="text-blue-500">Cred:</span>
+                <span className="text-blue-500">Elegibles:</span>
                 {isEditing ? <input className="w-14 border border-blue-200 rounded text-center text-blue-600 font-black bg-blue-50/50" value={seller.celularesCredito || 0} onChange={e => onChange(seller.id, 'celularesCredito', e.target.value)} /> : <span className="text-blue-600 font-black">{seller.celularesCredito || 0}</span>}
               </div>
             </div>
