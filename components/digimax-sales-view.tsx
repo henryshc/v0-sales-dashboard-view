@@ -866,6 +866,26 @@ const currentMonthData: MonthData = useMemo(() => {
     if (hydratedRef.current) markModified(monthKey);
   };
 
+  const handleSellerLeadTargetUpdate = (sellerId: number, lead: 'home' | 'pospago', target: number) => {
+    setHistory(prev => {
+      const prevMonth = prev[monthKey] || currentMonthData;
+      const sellers = [...prevMonth.sellers];
+      const idx = sellers.findIndex(s => s.id === sellerId);
+      if (idx === -1) return prev;
+      const current = sellers[idx];
+      sellers[idx] = {
+        ...current,
+        leads: {
+          ...(current.leads || EMPTY_LEADS),
+          [lead]: { ...(current.leads?.[lead] || { achieved: 0, target: 0 }), target: Math.max(0, target) },
+        },
+      };
+      setSellerConfig(sellers[idx]);
+      if (hydratedRef.current) markModified(monthKey);
+      return { ...prev, [monthKey]: { ...prevMonth, sellers } };
+    });
+  };
+
   const handleSellerWeightUpdate = (sellerId: number, metric: MetricKey, val: number) => {
     setHistory(prev => {
       const prevMonth = prev[monthKey] || currentMonthData;
@@ -1831,6 +1851,27 @@ const handleDeleteSeller = (id: number) => {
                   </button>
                 </div>
                 
+                {/* Metas comerciales adicionales */}
+                <div className="border-t border-slate-100 pt-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Metas de objetivos</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(['home', 'pospago'] as const).map(lead => (
+                      <label key={lead} className="block">
+                        <span className="text-[11px] font-bold uppercase text-slate-500">Meta {lead === 'home' ? 'Home' : 'Pospago'}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={sellerConfig.leads?.[lead]?.target ?? 0}
+                          onChange={e => handleSellerLeadTargetUpdate(sellerConfig.id, lead, parseInt(e.target.value, 10) || 0)}
+                          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                          aria-label={`Meta de ${lead}`}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Sliders */}
                 {(['sales', 'credits', 'accessories', 'chips', 'epin'] as MetricKey[]).map(k => {
                   const val = Math.round((sellerConfig.weights?.[k] ?? 0) * 100);
