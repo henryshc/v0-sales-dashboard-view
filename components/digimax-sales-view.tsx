@@ -2186,15 +2186,15 @@ const CommissionInput = ({ label, val, onChange }: { label: string; val: number;
               {seller.creditBreakdown?.oi > 0 && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-bold">OI: {seller.creditBreakdown.oi}</span>}
             </div>
           )}
-          {/* KPI de Leads para vendedor transaccional (TigoMoney) */}
-          {seller.sellerType === 'tigomoney' && (
-            <div className="bg-purple-50/60 border border-purple-100 rounded-lg p-2.5 space-y-2">
-              <p className="text-[9px] font-bold uppercase text-purple-500 tracking-wider">Personas Generadas con Interes</p>
+          {/* Objetivos comerciales disponibles para cada vendedor */}
+          <div className="bg-purple-50/60 border border-purple-100 rounded-lg p-2.5 space-y-2">
+            <p className="text-[9px] font-bold uppercase text-purple-500 tracking-wider">Objetivos adicionales</p>
+            {seller.sellerType === 'tigomoney' && (
               <MetricRow label="Credito" val={seller.leads?.credito.achieved || 0} target={seller.leads?.credito.target || 0} onChange={v => onChange(seller.id, 'leadCredito', v)} onTargetChange={v => onChange(seller.id, 'leadCredito', v, true)} isEditing={isEditing} />
-              <MetricRow label="Home" val={seller.leads?.home.achieved || 0} target={seller.leads?.home.target || 0} onChange={v => onChange(seller.id, 'leadHome', v)} onTargetChange={v => onChange(seller.id, 'leadHome', v, true)} isEditing={isEditing} />
-              <MetricRow label="Pospago" val={seller.leads?.pospago.achieved || 0} target={seller.leads?.pospago.target || 0} onChange={v => onChange(seller.id, 'leadPospago', v)} onTargetChange={v => onChange(seller.id, 'leadPospago', v, true)} isEditing={isEditing} />
-            </div>
-          )}
+            )}
+            <MetricRow label="Home" val={seller.leads?.home.achieved || 0} target={seller.leads?.home.target || 0} onChange={v => onChange(seller.id, 'leadHome', v)} onTargetChange={v => onChange(seller.id, 'leadHome', v, true)} isEditing={isEditing} />
+            <MetricRow label="Pospago" val={seller.leads?.pospago.achieved || 0} target={seller.leads?.pospago.target || 0} onChange={v => onChange(seller.id, 'leadPospago', v)} onTargetChange={v => onChange(seller.id, 'leadPospago', v, true)} isEditing={isEditing} />
+          </div>
           {seller.sellerType === 'tigomoney' && (
             <p className="text-[9px] text-slate-400 italic -mt-1">Metas de venta simbolicas (no afectan el KPI).</p>
           )}
