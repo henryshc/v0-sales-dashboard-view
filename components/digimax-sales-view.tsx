@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateAIAnalysis, type AIAnalysis } from '@/app/actions/ai-analysis';
+import type { A2Estado } from '@/lib/a2-sync';
 
 // ============================================================================
 // 1. TIPOS
@@ -93,6 +94,7 @@ type MonthData = {
   vacations?: VacationEntry[];  // Vacaciones editables por mes
   isClosed?: boolean;         // Mes cerrado/congelado
   closedAt?: string | null;   // Fecha de cierre
+  a2?: A2Estado;              // Estado de la sincronizacion con A2 (facturacion)
 };
 
 type HistoryMap = Record<string, MonthData>;
@@ -315,8 +317,10 @@ const DataService = {
             return;
           }
           // Caso 2: ambos tienen datos -> usar el mas reciente por lastModifiedAt
-          const localTime = new Date(localMonth?.lastModifiedAt || 0).getTime();
-          const cloudTime = new Date(cloudMonth?.lastModifiedAt || 0).getTime();
+          // La sincronizacion con A2 (a2.syncedAt) tambien cuenta como modificacion.
+          const sello = (m?: MonthData) => Math.max(new Date(m?.lastModifiedAt || 0).getTime() || 0, new Date(m?.a2?.syncedAt || 0).getTime() || 0);
+          const localTime = sello(localMonth);
+          const cloudTime = sello(cloudMonth);
           if (localTime > cloudTime) {
             cloudData.history[monthKey] = localMonth;
             recovered++;
@@ -668,6 +672,68 @@ const VacationForm = ({ editingVacation, sellers, onSave }: {
   );
 };
 
+// Sanea el historial que llega de la nube (tambien se usa al recargar tras sincronizar con A2).
+const buildHistoryFromCloud = (cloudData: CloudPayload): HistoryMap => {
+    const rawHistory = cloudData.history || {};
+    const patchedHistory: HistoryMap = {};
+    Object.keys(rawHistory).forEach(key => {
+      const monthObj = rawHistory[key] as MonthData;
+      const sellers = (monthObj?.sellers || []).map(s => {
+        const sname = String(s.name || '').toUpperCase();
+        // Auto-deteccion: JAZMIN es rol transaccional (TigoMoney) aunque la nube no lo tenga guardado
+        const isTigoMoney = s.sellerType === 'tigomoney' || sname.includes('JAZMIN') || sname.includes('JASMIN');
+        return ({
+        id: safeNumber(s.id, 0),
+        name: sname,
+        celulares: safeNumber(s.celulares, 0),
+        celularesCredito: safeNumber(s.celularesCredito, 0),
+        utility: safeNumber(s.utility, 0),
+        sellerType: isTigoMoney ? 'tigomoney' : 'piso',
+        leads: isTigoMoney ? (s.leads ? {
+          credito: { achieved: safeNumber(s.leads?.credito?.achieved), target: safeNumber(s.leads?.credito?.target) },
+          home: { achieved: safeNumber(s.leads?.home?.achieved), target: safeNumber(s.leads?.home?.target) },
+          pospago: { achieved: safeNumber(s.leads?.pospago?.achieved), target: safeNumber(s.leads?.pospago?.target) },
+        } : { credito: { achieved: 0, target: 20 }, home: { achieved: 0, target: 10 }, pospago: { achieved: 0, target: 15 } }) : undefined,
+        creditBreakdown: {
+          ola: safeNumber(s.creditBreakdown?.ola, 0),
+          krediya: safeNumber(s.creditBreakdown?.krediya, 0),
+          oi: safeNumber(s.creditBreakdown?.oi, 0),
+        },
+        weights: { ...DEFAULT_WEIGHTS, ...(s.weights || {}) } as WeightsMap,
+        metrics: makeMetrics({
+          sales: { achieved: safeNumber(s.metrics?.sales?.achieved), target: safeNumber(s.metrics?.sales?.target) },
+          credits: { achieved: safeNumber(s.metrics?.credits?.achieved), target: safeNumber(s.metrics?.credits?.target) },
+          accessories: { achieved: safeNumber(s.metrics?.accessories?.achieved), target: safeNumber(s.metrics?.accessories?.target) },
+          chips: { achieved: safeNumber(s.metrics?.chips?.achieved), target: safeNumber(s.metrics?.chips?.target) },
+          epin: { achieved: safeNumber(s.metrics?.epin?.achieved), target: safeNumber(s.metrics?.epin?.target) },
+        }),
+        status: s.status || 'active',
+        hireDate: s.hireDate || null,
+        exitDate: s.exitDate || null,
+        exitReason: s.exitReason || null,
+        suspendedUntil: s.suspendedUntil || null,
+        notes: s.notes || '',
+      } as Seller);
+      });
+      patchedHistory[key] = {
+        sellers,
+        commissions: { tigo: safeNumber(monthObj?.commissions?.tigo), krediya: safeNumber(monthObj?.commissions?.krediya), ola: safeNumber(monthObj?.commissions?.ola) },
+        globalTargets: { ...DEFAULT_GLOBAL_TARGETS, ...(monthObj?.globalTargets || {}) },
+        modifiedDays: Array.isArray(monthObj?.modifiedDays) ? monthObj.modifiedDays : [],
+        lastModifiedAt: monthObj?.lastModifiedAt || null,
+        vacations: Array.isArray(monthObj?.vacations) ? monthObj.vacations : [],
+        isClosed: !!monthObj?.isClosed,
+        closedAt: monthObj?.closedAt || null,
+        changeLog: Array.isArray(monthObj?.changeLog) ? monthObj.changeLog : [],
+        a2: monthObj?.a2 || undefined,
+      };
+    });
+    // Sembrar meses base SOLO si faltan (nunca sobrescribe datos del usuario)
+    if (!patchedHistory['2026-01']) patchedHistory['2026-01'] = { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+    if (!patchedHistory['2026-02']) patchedHistory['2026-02'] = { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+    return patchedHistory;
+};
+
 const DigimaxSalesView = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'compare' | 'history' | 'ai'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
@@ -717,62 +783,7 @@ const DigimaxSalesView = () => {
         // siembran meses base que falten y se actualiza la version.
         const versionChanged = cloudData.version !== DATA_VERSION;
         if (versionChanged) setSyncStatus('updating');
-        const rawHistory = cloudData.history || {};
-        const patchedHistory: HistoryMap = {};
-        Object.keys(rawHistory).forEach(key => {
-          const monthObj = rawHistory[key] as MonthData;
-          const sellers = (monthObj?.sellers || []).map(s => {
-            const sname = String(s.name || '').toUpperCase();
-            // Auto-deteccion: JAZMIN es rol transaccional (TigoMoney) aunque la nube no lo tenga guardado
-            const isTigoMoney = s.sellerType === 'tigomoney' || sname.includes('JAZMIN') || sname.includes('JASMIN');
-            return ({
-            id: safeNumber(s.id, 0),
-            name: sname,
-            celulares: safeNumber(s.celulares, 0),
-            celularesCredito: safeNumber(s.celularesCredito, 0),
-            utility: safeNumber(s.utility, 0),
-            sellerType: isTigoMoney ? 'tigomoney' : 'piso',
-            leads: isTigoMoney ? (s.leads ? {
-              credito: { achieved: safeNumber(s.leads?.credito?.achieved), target: safeNumber(s.leads?.credito?.target) },
-              home: { achieved: safeNumber(s.leads?.home?.achieved), target: safeNumber(s.leads?.home?.target) },
-              pospago: { achieved: safeNumber(s.leads?.pospago?.achieved), target: safeNumber(s.leads?.pospago?.target) },
-            } : { credito: { achieved: 0, target: 20 }, home: { achieved: 0, target: 10 }, pospago: { achieved: 0, target: 15 } }) : undefined,
-            creditBreakdown: {
-              ola: safeNumber(s.creditBreakdown?.ola, 0),
-              krediya: safeNumber(s.creditBreakdown?.krediya, 0),
-              oi: safeNumber(s.creditBreakdown?.oi, 0),
-            },
-            weights: { ...DEFAULT_WEIGHTS, ...(s.weights || {}) } as WeightsMap,
-            metrics: makeMetrics({
-              sales: { achieved: safeNumber(s.metrics?.sales?.achieved), target: safeNumber(s.metrics?.sales?.target) },
-              credits: { achieved: safeNumber(s.metrics?.credits?.achieved), target: safeNumber(s.metrics?.credits?.target) },
-              accessories: { achieved: safeNumber(s.metrics?.accessories?.achieved), target: safeNumber(s.metrics?.accessories?.target) },
-              chips: { achieved: safeNumber(s.metrics?.chips?.achieved), target: safeNumber(s.metrics?.chips?.target) },
-              epin: { achieved: safeNumber(s.metrics?.epin?.achieved), target: safeNumber(s.metrics?.epin?.target) },
-            }),
-            status: s.status || 'active',
-            hireDate: s.hireDate || null,
-            exitDate: s.exitDate || null,
-            exitReason: s.exitReason || null,
-            suspendedUntil: s.suspendedUntil || null,
-            notes: s.notes || '',
-          } as Seller);
-          });
-          patchedHistory[key] = {
-            sellers,
-            commissions: { tigo: safeNumber(monthObj?.commissions?.tigo), krediya: safeNumber(monthObj?.commissions?.krediya), ola: safeNumber(monthObj?.commissions?.ola) },
-            globalTargets: { ...DEFAULT_GLOBAL_TARGETS, ...(monthObj?.globalTargets || {}) },
-            modifiedDays: Array.isArray(monthObj?.modifiedDays) ? monthObj.modifiedDays : [],
-            lastModifiedAt: monthObj?.lastModifiedAt || null,
-            vacations: Array.isArray(monthObj?.vacations) ? monthObj.vacations : [],
-            isClosed: !!monthObj?.isClosed,
-            closedAt: monthObj?.closedAt || null,
-            changeLog: Array.isArray(monthObj?.changeLog) ? monthObj.changeLog : [],
-          };
-        });
-        // Sembrar meses base SOLO si faltan (nunca sobrescribe datos del usuario)
-        if (!patchedHistory['2026-01']) patchedHistory['2026-01'] = { sellers: JAN_2026_DATA, commissions: JAN_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
-        if (!patchedHistory['2026-02']) patchedHistory['2026-02'] = { sellers: FEB_2026_DATA, commissions: FEB_COMMISSIONS, globalTargets: { ...DEFAULT_GLOBAL_TARGETS }, modifiedDays: [], lastModifiedAt: null };
+        const patchedHistory = buildHistoryFromCloud(cloudData);
         setHistory(patchedHistory);
         // Persistir el historial COMPLETO a la nube si:
         //  - cambio la version (migracion), o
@@ -815,6 +826,115 @@ const currentMonthData: MonthData = useMemo(() => {
   }, [history, monthKey]);
 
   const globalTargets = useMemo<GlobalTargets>(() => currentMonthData.globalTargets || { ...DEFAULT_GLOBAL_TARGETS }, [currentMonthData]);
+
+  // ==========================================================================
+  // SINCRONIZACION CON A2 (facturacion)
+  // El boton marca el mes con a2.requestedAt; el programa del servidor de A2 lo
+  // ve, calcula lo logrado y lo envia a /api/a2-sync. Aqui solo se espera y recarga.
+  // ==========================================================================
+  const [a2Esperando, setA2Esperando] = useState<string | null>(null);
+  const [a2Mensaje, setA2Mensaje] = useState<{ texto: string; error: boolean } | null>(null);
+  const [relojA2, setRelojA2] = useState(() => Date.now());
+  const historyRef = useRef(history);
+  const monthKeyRef = useRef(monthKey);
+  const isEditingRef = useRef(isEditing);
+  const syncStatusRef = useRef(syncStatus);
+  const a2EsperandoRef = useRef(a2Esperando);
+  useEffect(() => { historyRef.current = history; }, [history]);
+  useEffect(() => { monthKeyRef.current = monthKey; }, [monthKey]);
+  useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
+  useEffect(() => { syncStatusRef.current = syncStatus; }, [syncStatus]);
+  useEffect(() => { a2EsperandoRef.current = a2Esperando; }, [a2Esperando]);
+
+  const recargarDesdeNube = async () => {
+    const cloudData = await DataService.loadData();
+    setHistory(buildHistoryFromCloud(cloudData));
+  };
+
+  const consultarEstadoA2 = async (mes: string): Promise<A2Estado | null> => {
+    const r = await fetch(`/api/a2-sync/estado?mes=${mes}`, { cache: 'no-store' });
+    const datos = await r.json();
+    return (datos?.a2 as A2Estado) || null;
+  };
+
+  const solicitarA2 = () => {
+    if (currentMonthData.isClosed || a2Esperando) return;
+    const pedido = new Date().toISOString();
+    setHistory(prev => ({ ...prev, [monthKey]: { ...currentMonthData, a2: { ...(currentMonthData.a2 || {}), requestedAt: pedido } } }));
+    setA2Mensaje(null);
+    setA2Esperando(pedido);
+  };
+
+  // Mientras se espera al servidor de A2, revisar cada pocos segundos (maximo 3 minutos).
+  useEffect(() => {
+    if (!a2Esperando) return;
+    const pedido = new Date(a2Esperando).getTime();
+    const mes = monthKey;
+    const inicio = Date.now();
+    let cancelado = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const terminar = (texto: string, error: boolean) => {
+      if (cancelado) return;
+      setA2Esperando(null);
+      setA2Mensaje({ texto, error });
+    };
+    const revisar = async () => {
+      if (cancelado) return;
+      try {
+        const a2 = await consultarEstadoA2(mes);
+        if (a2?.syncedAt && new Date(a2.syncedAt).getTime() >= pedido) {
+          await recargarDesdeNube();
+          terminar('Actualizado con los datos de A2', false);
+          return;
+        }
+        if (a2?.errorAt && new Date(a2.errorAt).getTime() >= pedido) {
+          terminar(a2.error || 'No se pudo leer A2', true);
+          return;
+        }
+      } catch { /* se reintenta */ }
+      if (Date.now() - inicio > 180000) {
+        terminar('El servidor de A2 no respondio. Revisa que este encendido.', true);
+        return;
+      }
+      timer = setTimeout(revisar, 4000);
+    };
+    timer = setTimeout(revisar, 3000);
+    return () => { cancelado = true; if (timer) clearTimeout(timer); };
+  }, [a2Esperando, monthKey]);
+
+  // Cada minuto: si el servidor envio numeros nuevos de A2, recargar en silencio
+  // (solo si no se esta editando ni hay cambios sin guardar).
+  useEffect(() => {
+    if (isLoading) return;
+    const id = setInterval(async () => {
+      setRelojA2(Date.now());
+      if (isEditingRef.current || a2EsperandoRef.current || syncStatusRef.current !== 'synced') return;
+      try {
+        const mes = monthKeyRef.current;
+        const a2 = await consultarEstadoA2(mes);
+        const local = historyRef.current[mes]?.a2?.syncedAt;
+        if (a2?.syncedAt && new Date(a2.syncedAt).getTime() > new Date(local || 0).getTime()) {
+          await recargarDesdeNube();
+        }
+      } catch { /* sin conexion: se intenta el proximo minuto */ }
+    }, 60000);
+    return () => clearInterval(id);
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (!a2Mensaje) return;
+    const t = setTimeout(() => setA2Mensaje(null), a2Mensaje.error ? 9000 : 5000);
+    return () => clearTimeout(t);
+  }, [a2Mensaje]);
+
+  const haceA2 = (iso?: string | null): string => {
+    if (!iso) return 'Actualizar';
+    const min = Math.max(0, Math.round((relojA2 - new Date(iso).getTime()) / 60000));
+    if (min < 1) return 'ahora';
+    if (min < 60) return `${min} min`;
+    const h = Math.round(min / 60);
+    return h < 24 ? `${h} h` : new Date(iso).toLocaleDateString('es-HN', { day: 'numeric', month: 'short' });
+  };
 
   // HANDLERS
   const changeMonth = (offset: number) => { const nd = new Date(currentDate); nd.setMonth(nd.getMonth() + offset); setCurrentDate(nd); setIsEditing(false); };
@@ -1312,6 +1432,11 @@ const handleDeleteSeller = (id: number) => {
         </DialogContentAny>
       </Dialog>
       {/* HEADER */}
+      {a2Mensaje && (
+        <div className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold max-w-[90vw] text-center ${a2Mensaje.error ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white'}`} role="status">
+          {a2Mensaje.texto}
+        </div>
+      )}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -1324,6 +1449,17 @@ const handleDeleteSeller = (id: number) => {
               {syncStatus === 'saving'
                 ? <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-500 border border-amber-200"><Cloud className="w-3 h-3 animate-pulse" /> Guardando</span>
                 : <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-500 border border-emerald-200"><CheckCircle2 className="w-3 h-3" /> Sync</span>}
+              {!currentMonthData.isClosed && (
+                <button
+                  onClick={solicitarA2}
+                  disabled={!!a2Esperando}
+                  title={currentMonthData.a2?.syncedAt ? `Datos de A2 del ${new Date(currentMonthData.a2.dataAt || currentMonthData.a2.syncedAt).toLocaleString('es-HN')}. Toca para actualizar.` : 'Actualizar con los datos de A2'}
+                  className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-80 transition-colors"
+                >
+                  <RefreshCw className={`w-3 h-3 ${a2Esperando ? 'animate-spin' : ''}`} />
+                  {a2Esperando ? 'Leyendo A2' : `A2 · ${haceA2(currentMonthData.a2?.syncedAt)}`}
+                </button>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1.5">

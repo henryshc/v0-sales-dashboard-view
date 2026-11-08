@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
+import { GOOGLE_SCRIPT_URL, leerNube, protegerCamposA2 } from '@/lib/a2-sync'
 
 // Proxy server-side hacia Google Apps Script para evitar bloqueos de CORS
 // que ocurren al hacer fetch directo desde el navegador en produccion.
-const GOOGLE_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbxufMWqOv5-cv_DUe4HThGywEMg1CwoJk7a0TH9zZwt44ViJaC3xOHYyd09BFNUQU7B/exec'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -30,7 +29,19 @@ export async function GET() {
 // POST: guardar datos en la nube
 export async function POST(request: Request) {
   try {
-    const body = await request.text()
+    let body = await request.text()
+    // Protege los numeros que vienen de A2: si este navegador tiene una copia mas vieja
+    // que la ultima sincronizacion, se conservan los de la nube para esos vendedores.
+    try {
+      const enviado = JSON.parse(body)
+      if (enviado && typeof enviado === 'object' && enviado.history) {
+        const nube = await leerNube()
+        enviado.history = protegerCamposA2(enviado.history, nube.history)
+        body = JSON.stringify(enviado)
+      }
+    } catch (err) {
+      console.log('[v0] Proteccion A2 omitida:', err instanceof Error ? err.message : String(err))
+    }
     const res = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
       redirect: 'follow',
